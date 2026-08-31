@@ -1,0 +1,272 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════
+   ERRATA — 격자 데이터 노트
+   
+   임의값을 쓰지 않는다. 아래 스케일에서만 고른다.
+     간격  4 8 12 16 24 32 48 64 96
+     타입  12 14 16 18 20 24 30 36 48
+   
+   색은 종이와 먹, 그리고 빨간펜 하나뿐이다. 교정은 원래 빨간펜으로 하는 것이라
+   강조색을 그 하나로 묶어두면 화면이 조용해지고 강조가 실제로 강조가 된다.
+   ══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* 종이와 먹 — 회색은 따뜻한 쪽으로 틀었다(hue 30~45). 중성 회색은 죽어 보인다. */
+  --color-paper: hsl(42 30% 97%);
+  --color-paper-2: hsl(42 22% 94%);
+  --color-sheet: hsl(45 40% 99%);
+  --color-ink: hsl(30 10% 12%);
+  --color-ink-2: hsl(30 8% 32%);
+  --color-ink-3: hsl(32 7% 52%);
+  --color-ink-4: hsl(34 9% 70%);
+  --color-rule: hsl(36 14% 85%);
+  --color-rule-2: hsl(36 12% 91%);
+
+  /* 빨간펜 — 이 앱의 유일한 강조색 */
+  --color-pen: hsl(6 64% 46%);
+  --color-pen-soft: hsl(6 62% 96%);
+  --color-pen-mid: hsl(6 60% 88%);
+
+  /* 개선은 아주 작게만 쓴다 */
+  --color-good: hsl(150 42% 30%);
+  --color-good-soft: hsl(150 35% 95%);
+
+  /* 카테고리 영역 색 — 문법에만 빨간펜, 나머지는 낮은 채도 */
+  --color-g-grammar: hsl(6 64% 46%);
+  --color-g-grammar-soft: hsl(6 62% 96%);
+  --color-g-vocab: hsl(28 42% 40%);
+  --color-g-vocab-soft: hsl(28 45% 95%);
+  --color-g-structure: hsl(205 28% 40%);
+  --color-g-structure-soft: hsl(205 30% 95%);
+  --color-g-mechanics: hsl(150 26% 34%);
+  --color-g-mechanics-soft: hsl(150 28% 95%);
+
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  color-scheme: light;
+  --grid: hsl(36 16% 92%);
+  --sheet-shadow:
+    0 1px 2px hsl(30 10% 12% / 0.05),
+    0 12px 32px hsl(30 10% 12% / 0.07);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   반전 — 먹지에 흰 잉크, 빨간펜은 그대로
+   
+   단순히 밝기만 뒤집으면 안 된다.
+   · 빨간펜은 어두운 바탕에서 탁해진다. 밝기를 올리고 채도를 조금 낮춘다.
+     (밝기가 극단으로 갈수록 채도가 낮게 느껴지므로 보정이 필요하다)
+   · 그림자로 만드는 입체감이 통하지 않는다. 지면을 바탕보다 밝게 해서 띄운다.
+   · 괘선은 바탕보다 어두워지는 게 아니라 밝아져야 보인다.
+   · 회색은 계속 따뜻한 쪽에 둔다. 종이의 성격을 잃지 않으려는 것이다.
+   
+   토큰 이름은 그대로 둔다. ink = 글자, paper = 바탕이라는 뜻은 반전돼도 참이다.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-paper: hsl(30 8% 9%);
+  --color-paper-2: hsl(30 7% 14%);
+  --color-sheet: hsl(30 7% 12%);
+
+  --color-ink: hsl(40 14% 90%);
+  --color-ink-2: hsl(38 10% 72%);
+  --color-ink-3: hsl(36 8% 54%);
+  --color-ink-4: hsl(34 7% 38%);
+
+  --color-rule: hsl(32 6% 26%);
+  --color-rule-2: hsl(32 6% 19%);
+
+  /* 빨간펜: 밝기 46% → 64%, 채도는 살짝 낮춰 눈을 찌르지 않게 */
+  --color-pen: hsl(6 72% 64%);
+  --color-pen-soft: hsl(6 40% 18%);
+  --color-pen-mid: hsl(6 45% 32%);
+
+  --color-good: hsl(150 45% 58%);
+  --color-good-soft: hsl(150 30% 16%);
+
+
+  /* 어두운 바탕에서는 밝기를 올려야 보인다 */
+  --color-g-grammar: hsl(6 72% 64%);
+  --color-g-grammar-soft: hsl(6 40% 18%);
+  --color-g-vocab: hsl(30 55% 62%);
+  --color-g-vocab-soft: hsl(30 30% 17%);
+  --color-g-structure: hsl(205 45% 62%);
+  --color-g-structure-soft: hsl(205 30% 17%);
+  --color-g-mechanics: hsl(150 40% 58%);
+  --color-g-mechanics-soft: hsl(150 25% 16%);
+
+  /* 모눈은 바탕보다 밝아져야 보인다 */
+  --grid: hsl(30 6% 13%);
+  /* 어두운 바탕에서는 그림자가 보이지 않는다. 밝기 차이로 띄운다. */
+  --sheet-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-paper: hsl(30 8% 9%);
+    --color-paper-2: hsl(30 7% 14%);
+    --color-sheet: hsl(30 7% 12%);
+
+    --color-ink: hsl(40 14% 90%);
+    --color-ink-2: hsl(38 10% 72%);
+    --color-ink-3: hsl(36 8% 54%);
+    --color-ink-4: hsl(34 7% 38%);
+
+    --color-rule: hsl(32 6% 26%);
+    --color-rule-2: hsl(32 6% 19%);
+
+    --color-pen: hsl(6 72% 64%);
+    --color-pen-soft: hsl(6 40% 18%);
+    --color-pen-mid: hsl(6 45% 32%);
+
+    --color-good: hsl(150 45% 58%);
+    --color-good-soft: hsl(150 30% 16%);
+
+
+    /* 어두운 바탕에서는 밝기를 올려야 보인다 */
+    --color-g-grammar: hsl(6 72% 64%);
+    --color-g-grammar-soft: hsl(6 40% 18%);
+    --color-g-vocab: hsl(30 55% 62%);
+    --color-g-vocab-soft: hsl(30 30% 17%);
+    --color-g-structure: hsl(205 45% 62%);
+    --color-g-structure-soft: hsl(205 30% 17%);
+    --color-g-mechanics: hsl(150 40% 58%);
+    --color-g-mechanics-soft: hsl(150 25% 16%);
+
+    --grid: hsl(30 6% 13%);
+    --sheet-shadow: none;
+  }
+}
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* 한국어는 기본적으로 어절 중간에서도 끊긴다. keep-all로 단어를 지킨다. */
+  word-break: keep-all;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  /* 8px 모눈 — 간격 스케일의 최소 단위와 같은 값이다 */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+::selection {
+  background: var(--color-pen-soft);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule) transparent;
+}
+
+/* ── 유틸리티 ───────────────────────────────────────────────────── */
+
+/** 숫자는 항상 자릿수가 고정돼야 비교가 된다 */
+@utility tabnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+/** 라벨은 안내판이고 데이터가 주인공이다 — 작게, 자간 넓게 */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+@utility label-sm {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+/** 리포트의 지면 */
+@utility sheet {
+  background: var(--color-sheet);
+  border: 1px solid var(--color-rule);
+  box-shadow: var(--sheet-shadow);
+}
+
+/** 제호 아래 굵은 괘선 */
+@utility rule-double {
+  border-top: 3px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-ink);
+  height: 4px;
+}
+
+/** 줄이 그어진 원고지 — 일기 본문이 놓이는 자리 */
+@utility ruled {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 31px,
+    var(--color-rule-2) 31px 32px
+  );
+}
+
+@keyframes errata-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: errata-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* 일기 본문 — 원고지 줄 간격(32px)에 정확히 앉는다 */
+.diary {
+  font-size: 17px;
+  line-height: 32px;
+}
+
+.diary-sm {
+  font-size: 16px;
+  line-height: 28px;
+}
