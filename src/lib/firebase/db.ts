@@ -291,10 +291,6 @@ export async function markReviewed(
 
 export { toDateKey }
 
-export async function deleteMistake(uid: string, mistakeId: string): Promise<void> {
-  await deleteDoc(doc(mistakesRef(uid), mistakeId))
-}
-
 // ── 저장함 (북마크) ────────────────────────────────────────────────
 
 /*

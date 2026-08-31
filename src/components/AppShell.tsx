@@ -7,7 +7,7 @@ import { appUrl } from "@/lib/basePath"
 import { useAuth } from "./AuthProvider"
 import { signInWithGoogle, signOutUser } from "@/lib/firebase/auth"
 import { listEntries, refreshQuests } from "@/lib/firebase/db"
-import { currentWeekKeys, toDateKey } from "@/lib/dates"
+import { currentWeekKeys } from "@/lib/dates"
 import { MonthCalendar } from "./MonthCalendar"
 import { QuestPanel } from "./QuestPanel"
 import { WeeklyGoal } from "./WeeklyGoal"
@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <MonthCalendar entries={entries} />
               </SideBlock>
               <SideBlock label="주간 목표">
-                <WeeklyGoal done={weekDone} variant="sidebar" />
+                <WeeklyGoal done={weekDone} />
               </SideBlock>
               <SideBlock label="진행">
                 <QuestPanel />
@@ -421,5 +421,3 @@ function Step({
     </li>
   )
 }
-
-export { toDateKey }

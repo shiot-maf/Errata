@@ -4,39 +4,6 @@ import type { ReactNode } from "react"
 import { Spinner as SpinnerIcon } from "./icons"
 import { useRadioGroupKeys } from "@/lib/a11y"
 
-/**
- * 상자를 두르지 않는다. 구획은 괘선이 나눈다.
- * 카드를 쌓으면 모든 것이 같은 무게가 되어 리듬이 사라진다.
- */
-export function Panel({
-  children,
-  className = "",
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return <div className={className}>{children}</div>
-}
-
-/** 구획 — 아래 괘선으로 끊고, 다음 구획과 넉넉히 띄운다 */
-export function Block({
-  children,
-  className = "",
-  last,
-}: {
-  children: ReactNode
-  className?: string
-  last?: boolean
-}) {
-  return (
-    <section
-      className={`${last ? "" : "mb-8 border-b border-rule-2 pb-8"} ${className}`}
-    >
-      {children}
-    </section>
-  )
-}
-
 /** 구획 머리말 */
 export function SectionTitle({
   children,
@@ -211,33 +178,6 @@ export function Tag({
       }
     >
       {children}
-    </span>
-  )
-}
-
-/**
- * 증감 표시 — 색만으로 구분하지 않도록 화살표를 같이 쓴다.
- * 화살표 기호는 읽어주는 이름이 제각각("아래쪽 검은 삼각형")이라
- * 감췄고, 대신 무슨 뜻인지를 글로 붙였다.
- */
-export function Delta({ value, unit }: { value: number; unit?: string }) {
-  if (value === 0) {
-    return (
-      <span className="tabnum text-xs text-ink-3">
-        <span aria-hidden>—</span>
-        <span className="sr-only">변화 없음</span>
-      </span>
-    )
-  }
-  const better = value < 0
-  return (
-    <span
-      className={`tabnum text-xs font-medium ${better ? "text-good" : "text-pen"}`}
-    >
-      <span aria-hidden>{better ? "▼" : "▲"}</span>
-      <span className="sr-only">{better ? "감소 " : "증가 "}</span>
-      {Math.abs(value).toFixed(1)}
-      {unit && <span className="ml-1 text-ink-3">{unit}</span>}
     </span>
   )
 }

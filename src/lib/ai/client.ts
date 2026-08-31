@@ -5,6 +5,8 @@ import { buildSystemPrompt, buildUserMessage } from "./prompt"
 import type { Mistake, RawFeedback } from "../types"
 import { CATEGORY_SLUGS, SEVERITIES, type Severity } from "../taxonomy"
 import { demoFeedback, isDemo } from "../demo/store"
+import { STORAGE_KEYS } from "../storageKeys"
+import { notifyStoredValueChanged } from "../browserStore"
 
 /**
  * BYO(Bring Your Own) 키 방식.
@@ -33,14 +35,30 @@ export const MODELS = [
   { id: "claude-haiku-4-5", label: "Haiku 4.5 — 빠르고 저렴" },
 ]
 
-const KEY_STORAGE = "echodiary.anthropicKey"
-const MODEL_STORAGE = "echodiary.model"
-const REMEMBER_STORAGE = "echodiary.rememberKey"
+const KEY_STORAGE = STORAGE_KEYS.apiKey
+const MODEL_STORAGE = STORAGE_KEYS.model
+const REMEMBER_STORAGE = STORAGE_KEYS.rememberKey
 
 // ── 키 보관 ───────────────────────────────────────────────────────
 // 기본값은 sessionStorage(탭 닫으면 사라짐). 사용자가 "이 기기에서 기억"을
 // 켜면 localStorage로 옮긴다. 본인 기기에서의 편의와 안전 사이 선택은
 // 사용자가 하게 둔다.
+
+/** 키가 들어 있는지만 알려준다 — 화면은 값 자체를 다시 보여줄 일이 없다. */
+export function hasApiKey(): boolean {
+  return getApiKey() !== null
+}
+
+/**
+ * 첨삭을 하려면 키를 먼저 받아야 하는 상태인가.
+ *
+ * 데모 모드는 모델을 부르지 않으므로 키가 필요 없다. 화면 쪽에서
+ * `!getApiKey()`만 보고 판단하면, 데모로 둘러보는 사람이 "첨삭 실행"을
+ * 눌렀을 때 있지도 않은 키를 내놓으라는 화면을 만난다.
+ */
+export function needsApiKey(): boolean {
+  return !isDemo() && !hasApiKey()
+}
 
 export function getApiKey(): string | null {
   if (typeof window === "undefined") return null
@@ -57,12 +75,31 @@ export function setApiKey(key: string, remember: boolean): void {
   const store = remember ? window.localStorage : window.sessionStorage
   store.setItem(KEY_STORAGE, key.trim())
   window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
+  notifyStoredValueChanged()
 }
 
 export function clearApiKey(): void {
   if (typeof window === "undefined") return
   window.sessionStorage.removeItem(KEY_STORAGE)
   window.localStorage.removeItem(KEY_STORAGE)
+  notifyStoredValueChanged()
+}
+
+/**
+ * "이 기기에서 기억"을 켜고 끈다.
+ * 예전에는 이 체크박스가 저장 버튼을 누를 때까지 아무 일도 하지 않아서,
+ * 이미 키를 넣어둔 사람이 껐다 켜도 키는 원래 자리에 그대로 있었다.
+ * 이제 켜는 즉시 키를 옮긴다.
+ */
+export function rememberKeyOnThisDevice(remember: boolean): void {
+  if (typeof window === "undefined") return
+  const key = getApiKey()
+  if (key) {
+    setApiKey(key, remember)
+    return
+  }
+  window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
+  notifyStoredValueChanged()
 }
 
 export function isKeyRemembered(): boolean {
@@ -81,6 +118,7 @@ export function getModel(): string {
 export function setModel(model: string): void {
   if (typeof window === "undefined") return
   window.localStorage.setItem(MODEL_STORAGE, model)
+  notifyStoredValueChanged()
 }
 
 // ── 호출 ──────────────────────────────────────────────────────────

@@ -15,163 +15,96 @@
   /*
    * 종이와 먹 — 회색은 따뜻한 쪽으로 틀었다(hue 30~45). 중성 회색은 죽어 보인다.
    *
-   * 밝기는 눈대중이 아니라 대비비로 정했다. 가장 어두운 바탕(paper-2)을
-   * 기준으로:
+   * 값은 light-dark(밝을 때, 어두울 때) 한 줄에 둘 다 적는다. 예전에는 어두운
+   * 팔레트를 :root[data-theme="dark"]와 prefers-color-scheme 미디어 쿼리에
+   * 두 벌 적어두었는데, 색 하나를 고치려면 세 곳을 같이 고쳐야 했고 실제로
+   * 한쪽만 고쳐진 자리가 있었다. 이제 테마 전환은 color-scheme만 바꾼다.
+   *
+   * 밝기는 눈대중이 아니라 대비비로 정했다. 가장 어두운 바탕(paper-2) 기준:
    *   ink-2, ink-3 — 본문과 부속 문구. 4.5:1 이상 (WCAG AA 일반 텍스트)
    *   ink-4        — 비활성·장식. 3:1 이상
    *   field        — 입력칸·컨트롤의 경계선. 3:1 이상 (WCAG 1.4.11)
    *   rule, rule-2 — 구획을 나누는 괘선. 장식이라 대비 하한을 두지 않는다
    * 종이 느낌을 지키려면 회색을 더 밝게 두고 싶지만, 읽을 수 없는 회색은
    * 종이가 아니라 그냥 안 보이는 글씨다.
+   *
+   * 먹지 쪽은 단순히 밝기를 뒤집은 게 아니다.
+   * · 빨간펜은 어두운 바탕에서 탁해진다. 밝기를 올리고 채도를 조금 낮춘다.
+   * · 괘선은 바탕보다 어두워지는 게 아니라 밝아져야 보인다.
+   * · 회색은 계속 따뜻한 쪽에 둔다. 종이의 성격을 잃지 않으려는 것이다.
+   * 토큰 이름은 그대로다. ink = 글자, paper = 바탕이라는 뜻은 반전돼도 참이다.
    */
-  --color-paper: hsl(42 30% 97%);
-  --color-paper-2: hsl(42 22% 94%);
-  --color-sheet: hsl(45 40% 99%);
-  --color-ink: hsl(30 10% 12%);
-  --color-ink-2: hsl(30 8% 32%);
-  --color-ink-3: hsl(32 7% 42%);
-  --color-ink-4: hsl(34 9% 53%);
-  --color-rule: hsl(36 14% 85%);
-  --color-rule-2: hsl(36 12% 91%);
-  --color-field: hsl(36 14% 52%);
+  --color-paper: light-dark(hsl(42 30% 97%), hsl(30 8% 9%));
+  --color-paper-2: light-dark(hsl(42 22% 94%), hsl(30 7% 14%));
+  --color-sheet: light-dark(hsl(45 40% 99%), hsl(30 7% 12%));
+  --color-ink: light-dark(hsl(30 10% 12%), hsl(40 14% 90%));
+  --color-ink-2: light-dark(hsl(30 8% 32%), hsl(38 10% 72%));
+  --color-ink-3: light-dark(hsl(32 7% 42%), hsl(36 8% 54%));
+  --color-ink-4: light-dark(hsl(34 9% 53%), hsl(34 7% 43%));
+  --color-rule: light-dark(hsl(36 14% 85%), hsl(32 6% 26%));
+  --color-rule-2: light-dark(hsl(36 12% 91%), hsl(32 6% 19%));
+  --color-field: light-dark(hsl(36 14% 52%), hsl(32 6% 43%));
 
   /* 빨간펜 — 이 앱의 유일한 강조색 */
-  --color-pen: hsl(6 64% 46%);
-  --color-pen-soft: hsl(6 62% 96%);
-  --color-pen-mid: hsl(6 60% 88%);
+  --color-pen: light-dark(hsl(6 64% 46%), hsl(6 72% 64%));
+  --color-pen-soft: light-dark(hsl(6 62% 96%), hsl(6 40% 18%));
+  --color-pen-mid: light-dark(hsl(6 60% 88%), hsl(6 45% 32%));
 
   /* 개선은 아주 작게만 쓴다 */
-  --color-good: hsl(150 42% 30%);
-  --color-good-soft: hsl(150 35% 95%);
+  --color-good: light-dark(hsl(150 42% 30%), hsl(150 45% 58%));
+  --color-good-soft: light-dark(hsl(150 35% 95%), hsl(150 30% 16%));
 
   /* 카테고리 영역 색 — 문법에만 빨간펜, 나머지는 낮은 채도 */
-  --color-g-grammar: hsl(6 64% 46%);
-  --color-g-grammar-soft: hsl(6 62% 96%);
-  --color-g-vocab: hsl(28 42% 40%);
-  --color-g-vocab-soft: hsl(28 45% 95%);
-  --color-g-structure: hsl(205 28% 40%);
-  --color-g-structure-soft: hsl(205 30% 95%);
-  --color-g-mechanics: hsl(150 26% 34%);
-  --color-g-mechanics-soft: hsl(150 28% 95%);
+  --color-g-grammar: light-dark(hsl(6 64% 46%), hsl(6 72% 64%));
+  --color-g-grammar-soft: light-dark(hsl(6 62% 96%), hsl(6 40% 18%));
+  --color-g-vocab: light-dark(hsl(28 42% 40%), hsl(30 55% 62%));
+  --color-g-vocab-soft: light-dark(hsl(28 45% 95%), hsl(30 30% 17%));
+  --color-g-structure: light-dark(hsl(205 28% 40%), hsl(205 45% 62%));
+  --color-g-structure-soft: light-dark(hsl(205 30% 95%), hsl(205 30% 17%));
+  --color-g-mechanics: light-dark(hsl(150 26% 34%), hsl(150 40% 58%));
+  --color-g-mechanics-soft: light-dark(hsl(150 28% 95%), hsl(150 25% 16%));
 
   --font-sans: "IBM Plex Sans", "IBM Plex Sans KR", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root {
-  color-scheme: light;
+  /* 기본은 기기 설정을 따른다. light-dark()가 보는 값이 바로 이것이다. */
+  color-scheme: light dark;
 
   /*
    * 다른 토큰을 가리키는 별칭. @theme이 아니라 여기 두는 이유는, @theme의
    * 변수는 유틸리티 클래스로 쓰이지 않으면 빌드에서 사라질 수 있기 때문이다.
    * 이 둘은 인라인 style의 var()로만 쓰이므로 :root에 직접 박아둔다.
    */
-  /* "틀린 것"의 색 — 값이 아니라 빨간펜을 가리킨다. 테마가 바뀌면 pen이
-     먼저 바뀌고 이쪽은 따라온다. */
+  /* "틀린 것"의 색 — 값이 아니라 빨간펜을 가리킨다. */
   --color-bad: var(--color-pen);
   /* 일기 본문 서체. 글자 크기 조절기의 견본 'A'가 이걸 따른다. */
   --font-content: var(--font-sans);
 
-  --grid: hsl(36 16% 92%);
+  /* 8px 모눈. 먹지에서는 바탕보다 밝아져야 보인다. */
+  --grid: light-dark(hsl(36 16% 92%), hsl(30 6% 13%));
+
+  /*
+   * 지면을 띄우는 그림자. 어두운 바탕에서는 그림자가 보이지 않으므로
+   * 색을 투명으로 두고, 지면과 바탕의 밝기 차이가 대신 일하게 한다.
+   * (light-dark()는 색만 받는다. 그래서 그림자 전체가 아니라 색만 바꾼다.)
+   */
+  --shadow-near: light-dark(hsl(30 10% 12% / 0.05), transparent);
+  --shadow-far: light-dark(hsl(30 10% 12% / 0.07), transparent);
   --sheet-shadow:
-    0 1px 2px hsl(30 10% 12% / 0.05),
-    0 12px 32px hsl(30 10% 12% / 0.07);
+    0 1px 2px var(--shadow-near),
+    0 12px 32px var(--shadow-far);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   반전 — 먹지에 흰 잉크, 빨간펜은 그대로
-   
-   단순히 밝기만 뒤집으면 안 된다.
-   · 빨간펜은 어두운 바탕에서 탁해진다. 밝기를 올리고 채도를 조금 낮춘다.
-     (밝기가 극단으로 갈수록 채도가 낮게 느껴지므로 보정이 필요하다)
-   · 그림자로 만드는 입체감이 통하지 않는다. 지면을 바탕보다 밝게 해서 띄운다.
-   · 괘선은 바탕보다 어두워지는 게 아니라 밝아져야 보인다.
-   · 회색은 계속 따뜻한 쪽에 둔다. 종이의 성격을 잃지 않으려는 것이다.
-   
-   토큰 이름은 그대로 둔다. ink = 글자, paper = 바탕이라는 뜻은 반전돼도 참이다.
-   ══════════════════════════════════════════════════════════════════ */
+/* 명시적으로 고른 테마는 기기 설정을 이긴다. 바꾸는 건 color-scheme 하나뿐이다. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-
-  --color-paper: hsl(30 8% 9%);
-  --color-paper-2: hsl(30 7% 14%);
-  --color-sheet: hsl(30 7% 12%);
-
-  --color-ink: hsl(40 14% 90%);
-  --color-ink-2: hsl(38 10% 72%);
-  --color-ink-3: hsl(36 8% 54%);
-  --color-ink-4: hsl(34 7% 43%);
-
-  --color-rule: hsl(32 6% 26%);
-  --color-rule-2: hsl(32 6% 19%);
-  --color-field: hsl(32 6% 43%);
-
-  /* 빨간펜: 밝기 46% → 64%, 채도는 살짝 낮춰 눈을 찌르지 않게 */
-  --color-pen: hsl(6 72% 64%);
-  --color-pen-soft: hsl(6 40% 18%);
-  --color-pen-mid: hsl(6 45% 32%);
-
-  --color-good: hsl(150 45% 58%);
-  --color-good-soft: hsl(150 30% 16%);
-
-
-  /* 어두운 바탕에서는 밝기를 올려야 보인다 */
-  --color-g-grammar: hsl(6 72% 64%);
-  --color-g-grammar-soft: hsl(6 40% 18%);
-  --color-g-vocab: hsl(30 55% 62%);
-  --color-g-vocab-soft: hsl(30 30% 17%);
-  --color-g-structure: hsl(205 45% 62%);
-  --color-g-structure-soft: hsl(205 30% 17%);
-  --color-g-mechanics: hsl(150 40% 58%);
-  --color-g-mechanics-soft: hsl(150 25% 16%);
-
-  /* 모눈은 바탕보다 밝아져야 보인다 */
-  --grid: hsl(30 6% 13%);
-  /* 어두운 바탕에서는 그림자가 보이지 않는다. 밝기 차이로 띄운다. */
-  --sheet-shadow: none;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-
-    --color-paper: hsl(30 8% 9%);
-    --color-paper-2: hsl(30 7% 14%);
-    --color-sheet: hsl(30 7% 12%);
-
-    --color-ink: hsl(40 14% 90%);
-    --color-ink-2: hsl(38 10% 72%);
-    --color-ink-3: hsl(36 8% 54%);
-    --color-ink-4: hsl(34 7% 43%);
-
-    --color-rule: hsl(32 6% 26%);
-    --color-rule-2: hsl(32 6% 19%);
-    --color-field: hsl(32 6% 43%);
-
-    --color-pen: hsl(6 72% 64%);
-    --color-pen-soft: hsl(6 40% 18%);
-    --color-pen-mid: hsl(6 45% 32%);
-
-    --color-good: hsl(150 45% 58%);
-    --color-good-soft: hsl(150 30% 16%);
-
-
-    /* 어두운 바탕에서는 밝기를 올려야 보인다 */
-    --color-g-grammar: hsl(6 72% 64%);
-    --color-g-grammar-soft: hsl(6 40% 18%);
-    --color-g-vocab: hsl(30 55% 62%);
-    --color-g-vocab-soft: hsl(30 30% 17%);
-    --color-g-structure: hsl(205 45% 62%);
-    --color-g-structure-soft: hsl(205 30% 17%);
-    --color-g-mechanics: hsl(150 40% 58%);
-    --color-g-mechanics-soft: hsl(150 25% 16%);
-
-    --grid: hsl(30 6% 13%);
-    --sheet-shadow: none;
-  }
-}
-
 
 *,
 *::before,

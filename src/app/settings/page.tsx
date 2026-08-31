@@ -1,20 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import { PageHeader } from "@/components/AppShell"
 import { ErrorNote, Pill, Section } from "@/components/ui"
 import { TextSizeControl, useTextSize } from "@/components/TextSizeControl"
 import { ThemeControl } from "@/components/ThemeControl"
 import {
+  DEFAULT_MODEL,
   MODELS,
   clearApiKey,
-  getApiKey,
   getModel,
+  hasApiKey,
   isKeyRemembered,
+  rememberKeyOnThisDevice,
   setApiKey,
   setModel,
 } from "@/lib/ai/client"
+import { useBrowserValue } from "@/lib/browserStore"
 import { listEntries, listMistakes, listSaved, setWeeklyGoal } from "@/lib/firebase/db"
 import { buildBackup, buildMarkdown, downloadFile } from "@/lib/export"
 import { signOutUser } from "@/lib/firebase/auth"
@@ -25,30 +28,25 @@ export default function SettingsPage() {
   const { index: sizeIndex, set: setSize } = useTextSize()
 
   const [keyValue, setKeyValue] = useState("")
-  const [remember, setRemember] = useState(false)
-  const [hasKey, setHasKey] = useState(false)
-  const [model, setModelState] = useState(MODELS[0].id)
   const [status, setStatus] = useState<string | null>(null)
   const [exporting, setExporting] = useState<null | "json" | "md">(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setHasKey(!!getApiKey())
-    setRemember(isKeyRemembered())
-    setModelState(getModel())
-  }, [])
+  // 셋 다 브라우저에 저장된 값이다. 정적 HTML에는 없으므로 기본값으로 그리고
+  // 브라우저에서 다시 읽는다. 저장 함수가 알려주므로 화면은 알아서 따라온다.
+  const hasKey = useBrowserValue(hasApiKey, false)
+  const remember = useBrowserValue(isKeyRemembered, false)
+  const model = useBrowserValue(getModel, DEFAULT_MODEL)
 
   const saveKey = () => {
     if (!keyValue.trim()) return
     setApiKey(keyValue, remember)
     setKeyValue("")
-    setHasKey(true)
     setStatus("API 키를 저장했어요.")
   }
 
   const dropKey = () => {
     clearApiKey()
-    setHasKey(false)
     setStatus("API 키를 지웠어요.")
   }
 
@@ -123,7 +121,7 @@ export default function SettingsPage() {
           <input
             type="checkbox"
             checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
+            onChange={(e) => rememberKeyOnThisDevice(e.target.checked)}
             className="accent-ink"
           />
           이 기기에서 기억하기
@@ -148,7 +146,6 @@ export default function SettingsPage() {
           aria-label="첨삭 모델"
           value={model}
           onChange={(e) => {
-            setModelState(e.target.value)
             setModel(e.target.value)
             setStatus("모델을 바꿨어요.")
           }}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import type { Entry } from "@/lib/types"
 import { toDateKey } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
@@ -141,7 +142,7 @@ function DayCell({
 
   // 그날 일기가 하나면 바로 그 글로, 여러 편이면 목록으로 보낸다.
   const href =
-    entries.length === 1 ? `/history/entry?id=${entries[0].id}` : "/history"
+    entries.length === 1 ? entryHref(entries[0].id) : "/history"
 
   return (
     <Link

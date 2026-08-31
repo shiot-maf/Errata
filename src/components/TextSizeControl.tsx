@@ -2,32 +2,32 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRadioGroupKeys } from "@/lib/a11y"
+import { STORAGE_KEYS } from "@/lib/storageKeys"
+import { notifyStoredValueChanged, useBrowserValue } from "@/lib/browserStore"
 
 /**
  * 본문 글자 크기 조절. 일기는 오래 들여다보는 화면이라
  * 사람마다 편한 크기가 꽤 다르다. 고른 값은 기기에 남는다.
  */
 export const TEXT_SIZES = [19, 24, 30, 38, 47] as const
-const STORAGE = "echodiary.textSize"
 const DEFAULT_INDEX = 2
 
-export function useTextSize() {
-  const [index, setIndex] = useState(DEFAULT_INDEX)
+function readIndex(): number {
+  // 저장값이 없으면 getItem은 null인데 Number(null)은 0이다. 그대로 두면
+  // 처음 온 사람에게 기본값 대신 가장 작은 글씨가 걸린다.
+  const raw = window.localStorage.getItem(STORAGE_KEYS.textSize)
+  if (raw === null) return DEFAULT_INDEX
+  const stored = Number(raw)
+  const valid = Number.isInteger(stored) && stored >= 0 && stored < TEXT_SIZES.length
+  return valid ? stored : DEFAULT_INDEX
+}
 
-  useEffect(() => {
-    // 저장값이 없으면 getItem은 null인데 Number(null)은 0이다. 그대로 두면
-    // 처음 온 사람에게 기본값 대신 가장 작은 글씨가 걸린다.
-    const raw = window.localStorage.getItem(STORAGE)
-    if (raw === null) return
-    const stored = Number(raw)
-    if (Number.isInteger(stored) && stored >= 0 && stored < TEXT_SIZES.length) {
-      setIndex(stored)
-    }
-  }, [])
+export function useTextSize() {
+  const index = useBrowserValue(readIndex, DEFAULT_INDEX)
 
   const set = (i: number) => {
-    setIndex(i)
-    window.localStorage.setItem(STORAGE, String(i))
+    window.localStorage.setItem(STORAGE_KEYS.textSize, String(i))
+    notifyStoredValueChanged()
   }
 
   return { size: TEXT_SIZES[index], index, set }

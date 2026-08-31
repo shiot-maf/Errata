@@ -13,3 +13,14 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ""
 export function appUrl(path: string): string {
   return `${BASE_PATH}${path}`
 }
+
+/**
+ * 일기 상세 주소.
+ *
+ * 정적 내보내기라 /history/[id] 같은 동적 세그먼트를 쓸 수 없다(빌드 때
+ * 존재하는 id를 모른다). 그래서 한 페이지에 질의문자열로 넘긴다. 이 모양이
+ * 네 군데에 흩어져 있어서, 경로를 바꾸려면 네 곳을 다 찾아야 했다.
+ */
+export function entryHref(id: string): string {
+  return `/history/entry?id=${encodeURIComponent(id)}`
+}

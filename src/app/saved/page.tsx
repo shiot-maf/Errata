@@ -8,6 +8,7 @@ import { Empty, Loading, Pill, Segmented, Tag } from "@/components/ui"
 import { listSaved, removeSaved } from "@/lib/firebase/db"
 import { categoryColor, getCategory } from "@/lib/taxonomy"
 import { formatKo } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 import { invalidateSaved } from "@/components/SaveButton"
 import type { SavedItem } from "@/lib/types"
 
@@ -158,7 +159,7 @@ export default function SavedPage() {
 
                 {item.entryId && (
                   <Link
-                    href={`/history/entry?id=${item.entryId}`}
+                    href={entryHref(item.entryId)}
                     className="mt-3 inline-block text-[11px] text-ink-3 underline underline-offset-2 hover:text-ink"
                   >
                     원래 일기 보기

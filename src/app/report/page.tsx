@@ -15,11 +15,29 @@ import type { Entry, Mistake } from "@/lib/types"
 
 type Range = 30 | 90 | 0
 
+/**
+ * 기간 필터.
+ *
+ * 자를 시각(cutoff)을 렌더 중에 Date.now()로 구하면 렌더마다 값이 달라져서,
+ * 같은 화면이 다시 그려질 때 경계에 걸친 일기가 들락거린다. 기간을 고르는
+ * 순간을 기준으로 한 번만 계산하고 그 값을 들고 다닌다.
+ */
+interface Span {
+  days: Range
+  /** 0이면 전체 — 자르지 않는다 */
+  cutoff: number
+}
+
+const spanFor = (days: Range): Span => ({
+  days,
+  cutoff: days === 0 ? 0 : Date.now() - days * 86_400_000,
+})
+
 export default function ReportPage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState<Entry[] | null>(null)
   const [mistakes, setMistakes] = useState<Mistake[]>([])
-  const [range, setRange] = useState<Range>(0)
+  const [span, setSpan] = useState<Span>({ days: 0, cutoff: 0 })
   const [focus, setFocus] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,13 +52,12 @@ export default function ReportPage() {
 
   const scoped = useMemo(() => {
     if (!entries) return null
-    if (range === 0) return { entries, mistakes }
-    const cutoff = Date.now() - range * 86_400_000
+    if (span.cutoff === 0) return { entries, mistakes }
     return {
-      entries: entries.filter((e) => e.createdAt >= cutoff),
-      mistakes: mistakes.filter((m) => m.createdAt >= cutoff),
+      entries: entries.filter((e) => e.createdAt >= span.cutoff),
+      mistakes: mistakes.filter((m) => m.createdAt >= span.cutoff),
     }
-  }, [entries, mistakes, range])
+  }, [entries, mistakes, span])
 
   const overview = useMemo(
     () => (scoped ? buildOverview(scoped.entries, scoped.mistakes) : null),
@@ -96,8 +113,8 @@ export default function ReportPage() {
         action={
           <Segmented
             label="기간"
-            value={range}
-            onChange={setRange}
+            value={span.days}
+            onChange={(days) => setSpan(spanFor(days))}
             options={[
               { value: 30 as Range, label: "30일" },
               { value: 90 as Range, label: "90일" },

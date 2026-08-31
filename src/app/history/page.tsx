@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/AppShell"
 import { Empty, Loading, Pill, Segmented, Tag } from "@/components/ui"
 import { listEntries } from "@/lib/firebase/db"
 import { formatKo } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 import { DiffText } from "@/components/DiffText"
 import type { Entry } from "@/lib/types"
 
@@ -219,7 +220,7 @@ function EntryRow({
 
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <Link
-              href={`/history/entry?id=${entry.id}`}
+              href={entryHref(entry.id)}
               className="text-[11px] font-bold tracking-[0.16em] text-ink-3 uppercase underline-offset-4 hover:text-ink hover:underline"
             >
               {entry.feedback ? "교정 하나씩 보기 →" : "첨삭 받기 →"}

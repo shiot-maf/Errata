@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/AppShell"
 import { ApiKeyPrompt } from "@/components/ApiKeyPrompt"
 import { FeedbackView } from "@/components/FeedbackView"
 import { TextSizeControl, useTextSize } from "@/components/TextSizeControl"
-import { getApiKey, requestFeedback, FeedbackError } from "@/lib/ai/client"
+import { needsApiKey, requestFeedback, FeedbackError } from "@/lib/ai/client"
 import {
   award,
   countWords,
@@ -21,10 +21,20 @@ import {
 } from "@/lib/firebase/db"
 import { EXP } from "@/lib/game"
 import { currentWeekKeys } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 import { toDateKey, formatKoFull } from "@/lib/dates"
+import { STORAGE_KEYS } from "@/lib/storageKeys"
+import { notifyStoredValueChanged, useBrowserValue } from "@/lib/browserStore"
 import type { Entry, Mistake, RawCorrection } from "@/lib/types"
 
-const DRAFT_KEY = "echodiary.draft"
+const DRAFT_KEY = STORAGE_KEYS.draft
+
+const readDraft = () => window.localStorage.getItem(DRAFT_KEY) ?? ""
+
+function clearDraft() {
+  window.localStorage.removeItem(DRAFT_KEY)
+  notifyStoredValueChanged()
+}
 
 /**
  * 이번 주에 일기를 쓴 "날"의 수. 하루에 두 편을 써도 하루로 센다 —
@@ -53,7 +63,19 @@ export default function WritePage() {
   const { size, index: sizeIndex, set: setSize } = useTextSize()
 
   const [dateKey, setDateKey] = useState(() => toDateKey())
-  const [text, setText] = useState("")
+
+  /*
+   * 쓰던 글.
+   *
+   * 초안은 localStorage에 있고, 정적 HTML을 구울 때는 그 값을 알 수 없다.
+   * 예전에는 빈 문자열로 시작해 효과 안에서 setText로 채웠는데, 그러면 렌더가
+   * 한 번 더 돌고 빈 입력칸이 잠깐 스친다. 대신 "아직 아무것도 안 친 상태"를
+   * null로 두고, 그때는 저장된 초안을 그대로 보여준다.
+   */
+  const savedDraft = useBrowserValue(readDraft, "")
+  const [typed, setTyped] = useState<string | null>(null)
+  const text = typed ?? savedDraft
+  const setText = setTyped
   const [entryId, setEntryId] = useState<string | null>(null)
   const [entry, setEntry] = useState<Entry | null>(null)
   const [corrections, setCorrections] = useState<RawCorrection[]>([])
@@ -68,11 +90,7 @@ export default function WritePage() {
   const nudge = useMemo(() => NUDGES[new Date().getDate() % NUDGES.length], [])
 
   // 새로고침하거나 실수로 탭을 닫아도 쓰던 글이 남도록 초안을 로컬에 둔다.
-  useEffect(() => {
-    const draft = window.localStorage.getItem(DRAFT_KEY)
-    if (draft) setText(draft)
-  }, [])
-
+  // 글자마다 쓰면 긴 글에서 버벅이므로 잠깐 멈췄을 때만 쓴다.
   useEffect(() => {
     if (entry) return
     const id = window.setTimeout(() => window.localStorage.setItem(DRAFT_KEY, text), 400)
@@ -93,7 +111,7 @@ export default function WritePage() {
 
   const analyze = async () => {
     if (words < 5) return
-    if (!getApiKey()) {
+    if (needsApiKey()) {
       setNeedsKey(true)
       return
     }
@@ -120,7 +138,7 @@ export default function WritePage() {
 
       setEntry(await getEntry(user.uid, id))
       setCorrections(feedback.corrections)
-      window.localStorage.removeItem(DRAFT_KEY)
+      clearDraft()
 
       await award(user.uid, {
         exp:
@@ -156,7 +174,7 @@ export default function WritePage() {
   const saveOnly = async () => {
     if (!text.trim()) return
     const id = await saveEntry(user.uid, { id: entryId ?? undefined, dateKey, text })
-    window.localStorage.removeItem(DRAFT_KEY)
+    clearDraft()
 
     await award(user.uid, {
       exp: EXP.entry + Math.min(EXP.maxWordBonus, Math.floor(words / 10) * EXP.perTenWords),
@@ -167,7 +185,7 @@ export default function WritePage() {
       ],
     })
     await refreshProfile()
-    router.push(`/history/entry?id=${id}`)
+    router.push(entryHref(id))
   }
 
   const startNew = () => {
@@ -179,7 +197,8 @@ export default function WritePage() {
   }
 
   // ── 첨삭 결과 ────────────────────────────────────────────────
-  if (entry?.feedback) {
+  const feedback = entry?.feedback
+  if (entry && feedback) {
     const asMistakes = corrections.map(
       (c, i) =>
         ({
@@ -187,7 +206,9 @@ export default function WritePage() {
           id: `local-${i}`,
           entryId: entryId ?? "",
           dateKey,
-          createdAt: Date.now(),
+          // 화면에 쓰이진 않지만, 렌더 중 Date.now()는 부를 때마다 값이 달라진다.
+          // 이 실수들이 나온 시각은 첨삭이 끝난 시각이다.
+          createdAt: feedback.analyzedAt,
           reviewCount: 0,
         }) satisfies Mistake,
     )

@@ -13,7 +13,9 @@ import type { Entry, Mistake, RawFeedback, SavedItem, UserProfile } from "../typ
  * 나가려면 ?demo=0 이거나 세션을 닫으면 된다.
  */
 
-const FLAG = "echodiary.demo"
+import { STORAGE_KEYS } from "../storageKeys"
+
+const FLAG = STORAGE_KEYS.demo
 
 export function isDemo(): boolean {
   if (typeof window === "undefined") return false

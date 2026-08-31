@@ -1,6 +1,6 @@
 "use client"
 
-import { CATEGORY_GROUPS, categoryColor } from "@/lib/taxonomy"
+import { CATEGORY_GROUPS } from "@/lib/taxonomy"
 import type { CategoryStat, GroupStat } from "@/lib/analysis/aggregate"
 import { formatKo, fromDateKey } from "@/lib/dates"
 
