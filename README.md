@@ -34,7 +34,7 @@ diaryUsers/{uid}/mistakes/{id}
 | --- | --- |
 | `/` | 일기 작성 → 첨삭. 글자 크기 조절, 자동 임시 저장, 45ch 조판 |
 | `/history` | 일기 보관함 — 목록에서 바로 펼쳐 읽기(원문/교정본 전환) |
-| `/history/[id]` | 일기 상세 — 단어 단위 diff, 교정 목록, 재첨삭 |
+| `/history/entry?id=` | 일기 상세 — 단어 단위 diff, 교정 목록, 재첨삭 |
 | `/saved` | 저장함 — 담아둔 교정·표현을 답 가리고 떠올려보기 |
 | `/report` | **취약점 리포트** — 카테고리 빈도, 30일 추이, 반복 실수, 잔디 |
 | `/review` | 내 오답으로 만든 복습 퀴즈 |
@@ -53,8 +53,7 @@ diaryUsers/{uid}/mistakes/{id}
 
 ## 게이미피케이션
 
-같은 리포의 [WriterQuest](../writerquest)에 정리해둔 체계를 가져왔습니다
-(`src/lib/game.ts`).
+WriterQuest에서 정리해둔 체계를 가져왔습니다 (`src/lib/game.ts`).
 
 - **EXP / 레벨** — `exp >= level * 300` 누적 차감식. 일기 작성·첨삭·복습 정답·표현
   저장이 EXP를 줍니다. 한 편에 몰아써서 레벨을 밀어올리지 못하도록 단어 보너스에
@@ -93,8 +92,6 @@ diaryUsers/{uid}/mistakes/{id}
 - 데이터는 채운 막대 대신 **끝에 눈금이 달린 자**로 그립니다. 재서 표시한
   값처럼 보이게 하려는 것입니다.
 
-`.claude/skills/ui-refactor`(Refactoring UI)의 규칙을 따랐습니다.
-
 ## 기술 구성
 
 - **Next.js 16** (App Router) + React 19 + TypeScript
@@ -102,6 +99,16 @@ diaryUsers/{uid}/mistakes/{id}
 - **Firebase** Auth(Google) + Firestore
 - **Anthropic API 직접 호출** — 사용자 키를 브라우저에 두고 서버를 거치지 않음
 - 의존성은 위 4개가 전부입니다. 차트·아이콘·diff 모두 직접 구현했습니다.
+
+### 첨삭 모델
+
+기본값은 **Claude Opus 5**(`claude-opus-5`)입니다. 설정에서 Sonnet 5나
+Haiku 4.5로 바꿀 수 있습니다. 첨삭은 하루 한 번 200단어 남짓을 보는 일이라
+요청이 잦지 않으므로, 기본값을 싼 쪽이 아니라 꼼꼼한 쪽에 두었습니다 —
+문법을 잘못 짚으면 그게 그대로 통계에 쌓여서 없는 약점을 만들어냅니다.
+
+모델 id는 날짜 접미사 없이 씁니다. 예전에 골라둔 모델이 목록에서 빠지면
+기본값으로 되돌아갑니다(`src/lib/ai/client.ts`).
 
 ### AI 첨삭이 도는 방식
 
@@ -138,9 +145,16 @@ diaryUsers/{uid}/mistakes/{id}
 ## 실행
 
 ```bash
-cd errata
 npm install
 npm run dev
+```
+
+검사는 세 가지입니다.
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint (flat config, eslint-config-next)
+npm run build       # 정적 내보내기까지
 ```
 
 환경변수 없이도 바로 뜹니다 — 이 앱 전용 Firebase 프로젝트(`diaryecho`)로
