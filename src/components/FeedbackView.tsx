@@ -79,10 +79,13 @@ export function FeedbackView({
           dateKey={entry.dateKey}
           sourceText={fb.correctedText}
         >
-          <div className="ruled border-y border-rule py-4">
-            <p className="diary whitespace-pre-wrap">
-              <DiffText before={entry.text} after={fb.correctedText} />
-            </p>
+          <div className="border-y border-rule py-4">
+            {/* 괘선은 안쪽에 — 바깥 여백이 줄을 밀면 글자가 줄 위에 앉지 않는다 */}
+            <div className="ruled">
+              <p className="diary whitespace-pre-wrap">
+                <DiffText before={entry.text} after={fb.correctedText} />
+              </p>
+            </div>
           </div>
         </SelectionSaver>
         <p className="mt-3 text-xs text-ink-3">
