@@ -1,0 +1,65 @@
+# ERRATA를 GitHub Pages에 배포한다.
+#
+# 이 리포에는 프로젝트가 하나뿐이라 앱이 곧 사이트다. Pages 사이트는 리포당
+# 하나이므로, 프로젝트를 리포별로 나눠두면 발행자가 경쟁할 일이 없다.
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Pages는 사이트를 리포 이름 아래에 서빙한다(/Errata). 이름을 하드코딩하지
+      # 않고 리포 이름에서 받아오므로, 리포를 옮기거나 이름을 바꿔도 따라간다.
+      - name: Build (static export)
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run build
+
+      # Pages가 _next 같은 밑줄 폴더를 Jekyll로 삼키지 않게 한다
+      - name: Disable Jekyll
+        run: touch out/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
