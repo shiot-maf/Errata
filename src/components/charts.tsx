@@ -109,7 +109,8 @@ export function GroupSplit({ groups }: { groups: GroupStat[] }) {
   if (total === 0) return null
   return (
     <div>
-      <div className="flex h-2">
+      {/* 띠는 아래 목록을 그림으로 옮긴 것뿐이다. 두 번 읽어줄 이유가 없다. */}
+      <div className="flex h-2" aria-hidden>
         {groups
           .filter((g) => g.count > 0)
           .map((g) => (
@@ -127,7 +128,7 @@ export function GroupSplit({ groups }: { groups: GroupStat[] }) {
             <li key={g.group} className="flex items-center gap-1.5">
               <span className="h-2 w-2" style={{ background: g.color }} aria-hidden />
               <span>{g.ko}</span>
-              <span className="tabular-nums text-ink-4">
+              <span className="tabular-nums text-ink-3">
                 {Math.round(g.share * 100)}%
               </span>
             </li>
@@ -158,9 +159,20 @@ export function ActivityHeatmap({
   const weeks: (typeof activity)[number][][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
+  // 칸 하나하나는 title 속성으로만 설명돼 있어서 읽어주지도, 키보드로 닿지도
+  // 않는다. 잔디가 말하려는 건 결국 "얼마나 꾸준했나"이므로 그걸 한 줄로 준다.
+  const activeDays = activity.filter((a) => a.entries > 0).length
+  const totalWords = activity.reduce((sum, a) => sum + a.words, 0)
+  const summary = `최근 ${activity.length}일 중 ${activeDays}일 작성, 모두 ${totalWords.toLocaleString()}단어`
+
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="flex gap-[3px]">
+    <div
+      className="overflow-x-auto pb-1"
+      role="img"
+      aria-label={summary}
+      tabIndex={0}
+    >
+      <div className="flex gap-[3px]" aria-hidden>
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-[3px]">
             {Array.from({ length: 7 }, (_, di) => {

@@ -225,7 +225,7 @@ export default function WritePage() {
             max={toDateKey()}
             onChange={(e) => e.target.value && setDateKey(e.target.value)}
             aria-label="일기 날짜"
-            className="label-sm bg-transparent outline-none"
+            className="label-sm bg-transparent"
           />
         }
       />
@@ -249,12 +249,13 @@ export default function WritePage() {
             ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            aria-label="오늘의 영어 일기"
             placeholder={`Today…\n\n${nudge}`}
             rows={6}
             spellCheck={false}
             autoCapitalize="sentences"
             style={{ fontSize: size, lineHeight: "32px", maxWidth: "62ch" }}
-            className="min-h-[12rem] w-full resize-none overflow-hidden bg-transparent text-ink caret-pen outline-none placeholder:text-ink-4"
+            className="min-h-[12rem] w-full resize-none overflow-hidden bg-transparent text-ink caret-pen placeholder:text-ink-3"
           />
         </div>
 

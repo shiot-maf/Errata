@@ -73,8 +73,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-ink-4">
+      <div
+        role="status"
+        className="flex min-h-dvh items-center justify-center text-ink-3"
+      >
         <Spinner className="h-5 w-5" />
+        <span className="sr-only">불러오는 중</span>
       </div>
     )
   }
@@ -90,6 +94,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto max-w-6xl px-0 py-0 md:px-8 md:py-8">
+      {/*
+        키보드만 쓰면 화면마다 제호와 내비를 지나야 본문에 닿는다.
+        평소에는 숨어 있다가 탭을 처음 누를 때 나타난다.
+      */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-ink focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:tracking-[0.1em] focus:text-sheet focus:uppercase"
+      >
+        본문으로 건너뛰기
+      </a>
+
       <div className="sheet min-h-dvh md:min-h-0">
         {/* ── 제호 ── */}
         <header className="px-5 pt-4 pb-3 md:px-12 md:pt-8 md:pb-4">
@@ -106,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             {/* 데스크톱 내비 */}
-            <nav className="ml-auto hidden gap-6 pb-1 md:flex">
+            <nav aria-label="주 메뉴" className="ml-auto hidden gap-6 pb-1 md:flex">
               {NAV.map((item) => {
                 const on = isActive(item.href)
                 return (
@@ -155,7 +170,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* ── 본문 ── */}
         <div className="grid md:grid-cols-[1fr_264px]">
-          <main className="min-w-0 px-5 pt-6 pb-24 md:border-r md:border-rule md:px-12 md:pt-8 md:pb-12">
+          <main
+            id="main"
+            tabIndex={-1}
+            className="min-w-0 px-5 pt-6 pb-24 md:border-r md:border-rule md:px-12 md:pt-8 md:pb-12"
+          >
             {children}
           </main>
 
@@ -178,14 +197,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {demo ? (
                   <a
                     href={appUrl("/?demo=0")}
-                    className="mt-1.5 inline-block font-mono text-[10px] tracking-[0.08em] text-ink-4 uppercase hover:text-ink"
+                    className="mt-1.5 inline-block font-mono text-[10px] tracking-[0.08em] text-ink-3 uppercase hover:text-ink"
                   >
                     데모 나가기
                   </a>
                 ) : (
                   <button
                     onClick={() => signOutUser()}
-                    className="mt-1.5 font-mono text-[10px] tracking-[0.08em] text-ink-4 uppercase hover:text-ink"
+                    className="mt-1.5 font-mono text-[10px] tracking-[0.08em] text-ink-3 uppercase hover:text-ink"
                   >
                     로그아웃
                   </button>
@@ -209,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={href}
               aria-current={on ? "page" : undefined}
               className={`flex flex-1 flex-col items-center gap-1 pt-2.5 pb-1.5 font-mono text-[9px] tracking-[0.08em] uppercase transition-colors ${
-                on ? "text-ink" : "text-ink-4"
+                on ? "text-ink" : "text-ink-3"
               }`}
             >
               <Icon className={`h-[18px] w-[18px] ${on ? "text-pen" : ""}`} />

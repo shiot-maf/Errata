@@ -158,7 +158,7 @@ export default function ReportPage() {
           <SectionTitle>100단어당 실수 추이</SectionTitle>
           <div>
             <Sparkline points={errorRateSeries} />
-            <div className="tabnum mt-2 flex justify-between text-[11px] text-ink-4">
+            <div className="tabnum mt-2 flex justify-between text-[11px] text-ink-3">
               <span>{formatKo(errorRateSeries[0].label)}</span>
               <span>내려갈수록 좋아지는 중</span>
               <span>{formatKo(errorRateSeries[errorRateSeries.length - 1].label)}</span>
@@ -248,7 +248,7 @@ export default function ReportPage() {
                 <div className="mb-2.5 flex flex-wrap items-center gap-2">
                   <Tag color={categoryColor(r.category)}>{getCategory(r.category).ko}</Tag>
                   <Tag color="var(--color-pen)">{r.count}번 반복</Tag>
-                  <span className="ml-auto text-[11px] text-ink-4">
+                  <span className="ml-auto text-[11px] text-ink-3">
                     마지막 {formatKo(r.lastSeen)}
                   </span>
                 </div>
@@ -274,7 +274,7 @@ export default function ReportPage() {
         <SectionTitle>작성 기록</SectionTitle>
         <div>
           <ActivityHeatmap activity={overview.activity} />
-          <p className="mt-4 text-xs text-ink-4">
+          <p className="mt-4 text-xs text-ink-3">
             진할수록 그날 많이 썼어요. 최근 {overview.activity.length}일.
           </p>
         </div>

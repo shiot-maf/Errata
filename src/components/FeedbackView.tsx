@@ -113,7 +113,7 @@ export function FeedbackView({
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px]">
-                      <span className="text-ink-4">{u.original}</span>
+                      <span className="text-ink-3">{u.original}</span>
                       <span className="mx-2 font-mono text-ink-4">→</span>
                       <span className="font-medium">{u.better}</span>
                     </p>

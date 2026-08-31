@@ -26,12 +26,13 @@ export function ApiKeyPrompt({ onSaved }: { onSaved: () => void }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && save()}
+        aria-label="Anthropic API 키"
         placeholder="sk-ant-..."
         autoComplete="off"
         spellCheck={false}
-        className="w-full max-w-md rounded-xl border border-ink/15 bg-transparent px-3 py-2.5 font-mono text-sm outline-none focus:border-ink/40"
+        className="w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
       />
-      <label className="flex items-center gap-2 text-sm text-ink/60">
+      <label className="flex items-center gap-2 text-sm text-ink-2">
         <input
           type="checkbox"
           checked={remember}
@@ -48,7 +49,7 @@ export function ApiKeyPrompt({ onSaved }: { onSaved: () => void }) {
           href="https://console.anthropic.com/settings/keys"
           target="_blank"
           rel="noreferrer"
-          className="text-xs text-ink/40 underline underline-offset-2 hover:text-ink"
+          className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink"
         >
           키 발급받기
         </a>

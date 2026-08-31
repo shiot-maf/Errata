@@ -105,7 +105,7 @@ export function SaveButton({
       aria-label={existing ? "저장함에서 빼기" : "저장함에 담기"}
       title={existing ? "저장함에서 빼기" : "저장함에 담기"}
       className={`shrink-0 rounded-full p-1.5 transition-colors ${
-        existing ? "text-ink" : "text-ink/25 hover:text-ink/60"
+        existing ? "text-ink" : "text-ink-4 hover:text-ink"
       }`}
     >
       <Bookmark className="h-4 w-4" filled={!!existing} />

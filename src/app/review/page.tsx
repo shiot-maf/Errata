@@ -138,7 +138,7 @@ export default function ReviewPage() {
 
       {/* 진행 */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-ink/10">
+        <div className="h-px flex-1 bg-rule">
           <div
             className="h-px bg-ink transition-[width] duration-300"
             style={{ width: `${(index / deck.length) * 100}%` }}
@@ -152,7 +152,7 @@ export default function ReviewPage() {
       <div key={current!.id} className="reveal space-y-5">
         <div className="flex items-center gap-2">
           <Tag color={categoryColor(current!.category)}>{cat.ko}</Tag>
-          <span className="ml-auto text-[11px] text-ink-4">
+          <span className="ml-auto text-[11px] text-ink-3">
             {formatKo(current!.dateKey)}에 쓴 일기
           </span>
         </div>
@@ -174,13 +174,14 @@ export default function ReviewPage() {
               else next()
             }}
             disabled={checked !== null}
+            aria-label="고친 표현"
             placeholder="고친 표현을 입력하세요"
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            className=" w-full border-b border-ink/20 bg-transparent pb-2 text-lg outline-none focus:border-ink disabled:opacity-70"
+            className=" w-full border-b border-field bg-transparent pb-2 text-lg focus:border-ink disabled:opacity-70"
           />
-          <p className="mt-2 text-xs text-ink-4">
+          <p className="mt-2 text-xs text-ink-3">
             대소문자와 구두점 차이는 맞은 것으로 봐요.
           </p>
         </div>
@@ -196,11 +197,16 @@ export default function ReviewPage() {
           </div>
         ) : (
           <div className="space-y-4 border-t border-rule-2 pt-5">
+            {/* 채점 결과는 색으로만 알려주면 안 된다 — 글로도, 소리로도 */}
             <p
+              role="status"
               className="text-[11px] font-bold tracking-[0.18em] uppercase"
               style={{ color: checked ? "var(--color-good)" : "var(--color-pen)" }}
             >
               {checked ? "정답" : "다시 보기"}
+              <span className="sr-only">
+                {checked ? "" : ` — 정답은 ${current!.corrected}`}
+              </span>
             </p>
 
             <div>

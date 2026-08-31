@@ -105,13 +105,13 @@ export default function SavedPage() {
                   ) : (
                     <Tag>{item.kind === "selection" ? "발췌" : "표현"}</Tag>
                   )}
-                  <span className="ml-auto text-[11px] text-ink-4">
+                  <span className="ml-auto text-[11px] text-ink-3">
                     {item.dateKey && formatKo(item.dateKey)}
                   </span>
                   <button
                     onClick={() => drop(item.id)}
                     aria-label="저장함에서 빼기"
-                    className="text-[11px] font-bold tracking-[0.14em] text-ink-4 uppercase hover:text-ink"
+                    className="text-[11px] font-bold tracking-[0.14em] text-ink-3 uppercase hover:text-ink"
                   >
                     빼기
                   </button>
@@ -159,7 +159,7 @@ export default function SavedPage() {
                 {item.entryId && (
                   <Link
                     href={`/history/entry?id=${item.entryId}`}
-                    className="mt-3 inline-block text-[11px] text-ink-4 underline underline-offset-2 hover:text-ink"
+                    className="mt-3 inline-block text-[11px] text-ink-3 underline underline-offset-2 hover:text-ink"
                   >
                     원래 일기 보기
                   </Link>

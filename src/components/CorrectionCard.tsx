@@ -29,7 +29,7 @@ export function CorrectionCard({
         <div className="flex flex-wrap items-center gap-y-1">
           <Tag quiet>{cat.ko}</Tag>
           {mistake.severity === "major" && <Tag>중요</Tag>}
-          {showDate && <span className="ml-auto text-[11px] text-ink-4">{showDate}</span>}
+          {showDate && <span className="ml-auto text-[11px] text-ink-3">{showDate}</span>}
           <span className={showDate ? "" : "ml-auto"}>
             <SaveButton
               item={{
@@ -47,7 +47,7 @@ export function CorrectionCard({
         </div>
 
         <p className="mt-2.5 text-[17px] leading-relaxed">
-          <del className="text-ink-4 decoration-pen decoration-2">{mistake.original}</del>
+          <del className="text-ink-3 decoration-pen decoration-2">{mistake.original}</del>
           <span className="mx-2 font-mono text-ink-4">→</span>
           <span className="font-semibold shadow-[inset_0_-8px_0_var(--color-pen-soft)]">
             {mistake.corrected}

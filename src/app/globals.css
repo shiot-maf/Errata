@@ -12,16 +12,28 @@
    ══════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* 종이와 먹 — 회색은 따뜻한 쪽으로 틀었다(hue 30~45). 중성 회색은 죽어 보인다. */
+  /*
+   * 종이와 먹 — 회색은 따뜻한 쪽으로 틀었다(hue 30~45). 중성 회색은 죽어 보인다.
+   *
+   * 밝기는 눈대중이 아니라 대비비로 정했다. 가장 어두운 바탕(paper-2)을
+   * 기준으로:
+   *   ink-2, ink-3 — 본문과 부속 문구. 4.5:1 이상 (WCAG AA 일반 텍스트)
+   *   ink-4        — 비활성·장식. 3:1 이상
+   *   field        — 입력칸·컨트롤의 경계선. 3:1 이상 (WCAG 1.4.11)
+   *   rule, rule-2 — 구획을 나누는 괘선. 장식이라 대비 하한을 두지 않는다
+   * 종이 느낌을 지키려면 회색을 더 밝게 두고 싶지만, 읽을 수 없는 회색은
+   * 종이가 아니라 그냥 안 보이는 글씨다.
+   */
   --color-paper: hsl(42 30% 97%);
   --color-paper-2: hsl(42 22% 94%);
   --color-sheet: hsl(45 40% 99%);
   --color-ink: hsl(30 10% 12%);
   --color-ink-2: hsl(30 8% 32%);
-  --color-ink-3: hsl(32 7% 52%);
-  --color-ink-4: hsl(34 9% 70%);
+  --color-ink-3: hsl(32 7% 42%);
+  --color-ink-4: hsl(34 9% 53%);
   --color-rule: hsl(36 14% 85%);
   --color-rule-2: hsl(36 12% 91%);
+  --color-field: hsl(36 14% 52%);
 
   /* 빨간펜 — 이 앱의 유일한 강조색 */
   --color-pen: hsl(6 64% 46%);
@@ -89,10 +101,11 @@
   --color-ink: hsl(40 14% 90%);
   --color-ink-2: hsl(38 10% 72%);
   --color-ink-3: hsl(36 8% 54%);
-  --color-ink-4: hsl(34 7% 38%);
+  --color-ink-4: hsl(34 7% 43%);
 
   --color-rule: hsl(32 6% 26%);
   --color-rule-2: hsl(32 6% 19%);
+  --color-field: hsl(32 6% 43%);
 
   /* 빨간펜: 밝기 46% → 64%, 채도는 살짝 낮춰 눈을 찌르지 않게 */
   --color-pen: hsl(6 72% 64%);
@@ -130,10 +143,11 @@
     --color-ink: hsl(40 14% 90%);
     --color-ink-2: hsl(38 10% 72%);
     --color-ink-3: hsl(36 8% 54%);
-    --color-ink-4: hsl(34 7% 38%);
+    --color-ink-4: hsl(34 7% 43%);
 
     --color-rule: hsl(32 6% 26%);
     --color-rule-2: hsl(32 6% 19%);
+    --color-field: hsl(32 6% 43%);
 
     --color-pen: hsl(6 72% 64%);
     --color-pen-soft: hsl(6 40% 18%);
@@ -187,6 +201,22 @@ body {
 
 ::selection {
   background: var(--color-pen-soft);
+}
+
+/*
+ * 포커스.
+ *
+ * 키보드로 쓰는 사람에게 "지금 어디에 있는지"는 마우스 커서에 해당한다.
+ * 그게 안 보이면 조작이 불가능하다 — 입력칸마다 outline-none을 걸어두고
+ * 대체 표시를 주지 않는 게 이 앱의 상태였다.
+ *
+ * 빨간펜으로 그린다. 이 앱에서 "여기를 봐라"를 뜻하는 색이 그거 하나다.
+ * :focus가 아니라 :focus-visible이라, 마우스로 누를 때는 뜨지 않는다.
+ * @layer 밖에 두었으므로 Tailwind의 outline-none 유틸리티보다 우선한다.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-pen);
+  outline-offset: 2px;
 }
 
 * {

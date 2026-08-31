@@ -76,7 +76,7 @@ export function TextSizeControl({
           onClick={() => onChange(i)}
           data-checked={i === index}
           style={{ fontSize: 11 + i * 2.75 }}
-          className="rounded-md px-2 py-1 leading-none text-ink/45 transition-colors hover:bg-ink/[0.07] hover:text-ink data-[checked=true]:text-ink"
+          className="rounded-md px-2 py-1 leading-none text-ink-3 transition-colors hover:bg-paper-2 hover:text-ink data-[checked=true]:text-ink"
         >
           <span style={{ fontFamily: "var(--font-content)" }}>A</span>
         </button>

@@ -157,7 +157,7 @@ function EntryDetail() {
             <Pill variant="outline" onClick={analyze} busy={analyzing}>
               {analyzing ? "다시 첨삭 중" : "다시 첨삭 받기"}
             </Pill>
-            <p className="mt-3 text-xs text-ink-4">
+            <p className="mt-3 text-xs text-ink-3">
               다시 첨삭하면 이 일기의 기존 실수 기록은 새 결과로 교체됩니다.
             </p>
           </div>

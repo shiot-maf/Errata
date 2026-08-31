@@ -59,7 +59,7 @@ function QuestRow({ quest }: { quest: Quest }) {
 
   return (
     <li className="flex items-baseline justify-between gap-3 border-b border-rule-2 py-2.5 last:border-b-0">
-      <span className={`text-[13px] leading-snug ${quest.done ? "text-ink-4 line-through" : ""}`}>
+      <span className={`text-[13px] leading-snug ${quest.done ? "text-ink-3 line-through" : ""}`}>
         {quest.title}
       </span>
       <span className="tabnum shrink-0 text-[11px] text-ink-3">

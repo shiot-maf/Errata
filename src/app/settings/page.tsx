@@ -92,7 +92,10 @@ export default function SettingsPage() {
     <div className="space-y-8">
       <PageHeader no="01" title="설정" />
 
-      {status && <p className="text-sm text-ink-3">{status}</p>}
+      {/* 저장·내보내기 결과는 이 한 줄로만 알려준다 — 소리로도 들려야 한다 */}
+      <p role="status" className="text-sm text-ink-3 empty:hidden">
+        {status}
+      </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <Section
@@ -110,10 +113,11 @@ export default function SettingsPage() {
           value={keyValue}
           onChange={(e) => setKeyValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && saveKey()}
+          aria-label="Anthropic API 키"
           placeholder={hasKey ? "새 키로 교체하려면 입력하세요" : "sk-ant-..."}
           autoComplete="off"
           spellCheck={false}
-          className="w-full max-w-md rounded-xl border border-rule bg-transparent px-3 py-2.5 font-mono text-sm outline-none focus:border-ink/40"
+          className="w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
         />
         <label className="flex items-center gap-2 text-sm text-ink-2">
           <input
@@ -141,13 +145,14 @@ export default function SettingsPage() {
         description="꼼꼼함과 속도·비용의 균형을 고릅니다. 이미 받은 첨삭은 그대로 남습니다."
       >
         <select
+          aria-label="첨삭 모델"
           value={model}
           onChange={(e) => {
             setModelState(e.target.value)
             setModel(e.target.value)
             setStatus("모델을 바꿨어요.")
           }}
-          className="w-full max-w-md rounded-xl border border-rule bg-transparent px-3 py-2.5 text-sm outline-none focus:border-ink/40"
+          className="w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 text-sm"
         >
           {MODELS.map((m) => (
             <option key={m.id} value={m.id}>
@@ -173,13 +178,14 @@ export default function SettingsPage() {
 
       <Section title="주간 목표" description="한 주에 며칠 쓸지 정해두면 사이드바에 진행률이 표시됩니다.">
         <select
+          aria-label="한 주에 쓸 일기 편수"
           value={profile?.weeklyGoal ?? 3}
           onChange={async (e) => {
             await setWeeklyGoal(user.uid, Number(e.target.value))
             await refreshProfile()
             setStatus("주간 목표를 바꿨어요.")
           }}
-          className="w-full max-w-[10rem] rounded-xl border border-rule bg-transparent px-3 py-2.5 text-sm outline-none focus:border-ink/40"
+          className="w-full max-w-[10rem] rounded-xl border border-field bg-transparent px-3 py-2.5 text-sm"
         >
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
             <option key={n} value={n}>
@@ -209,7 +215,7 @@ export default function SettingsPage() {
             마크다운으로
           </Pill>
         </div>
-        <p className="text-xs text-ink-4">
+        <p className="text-xs text-ink-3">
           JSON에는 일기·첨삭·실수·저장함이 모두 들어갑니다. 마크다운은 사람이 읽기 좋은
           형태예요.
         </p>

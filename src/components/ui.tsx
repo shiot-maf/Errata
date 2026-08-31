@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import { Spinner as SpinnerIcon } from "./icons"
+import { useRadioGroupKeys } from "@/lib/a11y"
 
 /**
  * 상자를 두르지 않는다. 구획은 괘선이 나눈다.
@@ -129,7 +130,10 @@ export function Empty({
 
 export function Loading({ label = "…" }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 font-mono text-xs tracking-[0.08em] text-ink-3 uppercase">
+    <div
+      role="status"
+      className="flex items-center justify-center gap-2 py-16 font-mono text-xs tracking-[0.08em] text-ink-3 uppercase"
+    >
       <SpinnerIcon className="h-3.5 w-3.5" />
       <span>{label}</span>
     </div>
@@ -211,17 +215,27 @@ export function Tag({
   )
 }
 
-/** 증감 표시 — 색만으로 구분하지 않도록 화살표를 같이 쓴다 */
+/**
+ * 증감 표시 — 색만으로 구분하지 않도록 화살표를 같이 쓴다.
+ * 화살표 기호는 읽어주는 이름이 제각각("아래쪽 검은 삼각형")이라
+ * 감췄고, 대신 무슨 뜻인지를 글로 붙였다.
+ */
 export function Delta({ value, unit }: { value: number; unit?: string }) {
   if (value === 0) {
-    return <span className="tabnum text-xs text-ink-4">—</span>
+    return (
+      <span className="tabnum text-xs text-ink-3">
+        <span aria-hidden>—</span>
+        <span className="sr-only">변화 없음</span>
+      </span>
+    )
   }
   const better = value < 0
   return (
     <span
       className={`tabnum text-xs font-medium ${better ? "text-good" : "text-pen"}`}
     >
-      {better ? "▼" : "▲"}
+      <span aria-hidden>{better ? "▼" : "▲"}</span>
+      <span className="sr-only">{better ? "감소 " : "증가 "}</span>
       {Math.abs(value).toFixed(1)}
       {unit && <span className="ml-1 text-ink-3">{unit}</span>}
     </span>
@@ -239,18 +253,31 @@ export function Segmented<T extends string | number>({
   onChange: (v: T) => void
   label: string
 }) {
+  const index = Math.max(0, options.findIndex((o) => o.value === value))
+  const onKeyDown = useRadioGroupKeys(options.length, index, (next) =>
+    onChange(options[next].value),
+  )
+
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex border border-rule">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className="inline-flex border border-field"
+    >
       {options.map((o, i) => {
         const active = o.value === value
         return (
           <button
             key={String(o.value)}
+            type="button"
             role="radio"
             aria-checked={active}
+            // 라디오 그룹은 통째로 탭 정지점 하나다. 안에서는 화살표로 움직인다.
+            tabIndex={i === index ? 0 : -1}
             onClick={() => onChange(o.value)}
             className={`px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.1em] uppercase transition-colors ${
-              i > 0 ? "border-l border-rule" : ""
+              i > 0 ? "border-l border-field" : ""
             } ${active ? "bg-ink text-sheet" : "text-ink-3 hover:text-ink"}`}
           >
             {o.label}
@@ -263,7 +290,7 @@ export function Segmented<T extends string | number>({
 
 export function ErrorNote({ children }: { children: ReactNode }) {
   return (
-    <p className="border-l-2 border-pen bg-pen-soft px-4 py-3 text-sm text-pen">
+    <p role="alert" className="border-l-2 border-pen bg-pen-soft px-4 py-3 text-sm text-pen">
       {children}
     </p>
   )

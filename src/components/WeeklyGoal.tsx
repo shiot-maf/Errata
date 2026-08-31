@@ -41,9 +41,11 @@ export function WeeklyGoal({
         <div
           className="flex shrink-0 gap-1.5"
           role="progressbar"
+          aria-label="주간 목표 진행"
           aria-valuenow={done}
           aria-valuemin={0}
           aria-valuemax={goal}
+          aria-valuetext={`목표 ${goal}편 중 ${done}편`}
         >
           {Array.from({ length: goal }, (_, i) => (
             <span
@@ -66,10 +68,11 @@ export function WeeklyGoal({
             {editing ? (
               <select
                 autoFocus
+                aria-label="한 주에 쓸 일기 편수"
                 value={goal}
                 onChange={(e) => void changeGoal(Number(e.target.value))}
                 onBlur={() => setEditing(false)}
-                className="ml-1 border border-rule bg-transparent px-1 text-lg"
+                className="ml-1 border border-field bg-transparent px-1 text-lg"
               >
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                   <option key={n} value={n}>
@@ -98,9 +101,11 @@ export function WeeklyGoal({
         <div
           className="flex gap-1.5"
           role="progressbar"
+          aria-label="주간 목표 진행"
           aria-valuenow={done}
           aria-valuemin={0}
           aria-valuemax={goal}
+          aria-valuetext={`목표 ${goal}편 중 ${done}편`}
         >
           {Array.from({ length: goal }, (_, i) => (
             <span
