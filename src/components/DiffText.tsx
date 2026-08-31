@@ -29,7 +29,9 @@ export function DiffText({
               data-diff="remove"
               className="line-through decoration-2"
               style={{
-                color: "color-mix(in srgb, var(--color-bad) 70%, transparent)",
+                // 투명도로 흐리게 하면 본문 대비가 3:1 아래로 떨어진다.
+                // 지워진 표시는 취소선이 이미 하고 있으니 색은 온전히 쓴다.
+                color: "var(--color-bad)",
                 textDecorationColor: "currentColor",
               }}
             >

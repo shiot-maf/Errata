@@ -35,9 +35,15 @@ export default function ReviewPage() {
   const current = deck?.[index]
   const finished = deck !== null && index >= deck.length
 
-  const check = async () => {
+  /**
+   * 채점하고 결과를 남긴다.
+   *
+   * "모르겠어요"도 여기를 지나야 한다. 틀린 것으로 기록되지 않으면
+   * lastReviewCorrect가 비어서 다음 복습 우선순위에 반영되지 않고,
+   * 주간 퀘스트도 오르지 않는다 — 푼 건 푼 것이다.
+   */
+  const grade = async (correct: boolean) => {
     if (!current || !user || checked !== null) return
-    const correct = answersMatch(answer, current.corrected)
     setChecked(correct)
     setScore((s) => ({
       right: s.right + (correct ? 1 : 0),
@@ -52,6 +58,12 @@ export default function ReviewPage() {
     })
     await refreshProfile()
   }
+
+  const check = async () => {
+    if (!current) return
+    await grade(answersMatch(answer, current.corrected))
+  }
+  const giveUp = () => void grade(false)
 
   const next = () => {
     setIndex((i) => i + 1)
@@ -178,7 +190,7 @@ export default function ReviewPage() {
             <Pill onClick={check} disabled={!answer.trim()}>
               확인
             </Pill>
-            <Pill variant="quiet" onClick={() => { setChecked(false); setScore(s => ({...s, wrong: s.wrong + 1})) }}>
+            <Pill variant="quiet" onClick={giveUp}>
               모르겠어요
             </Pill>
           </div>

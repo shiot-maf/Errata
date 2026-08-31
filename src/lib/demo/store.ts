@@ -29,6 +29,10 @@ export function isDemo(): boolean {
   return window.sessionStorage.getItem(FLAG) === "1"
 }
 
+/** Date.now()만으로 id를 만들면 같은 밀리초에 두 번 저장할 때 겹친다. */
+let seq = 0
+const nextId = (prefix: string) => `${prefix}-${Date.now()}-${seq++}`
+
 /** 데모 중 만들어진 변경은 이 세션 안에서만 유지된다. */
 let state: {
   profile: UserProfile
@@ -76,7 +80,7 @@ export const demoStore = {
         return found.id
       }
     }
-    const id = `demo-new-${Date.now()}`
+    const id = nextId("demo-new")
     s.entries.unshift({
       id,
       dateKey: input.dateKey,
@@ -142,7 +146,7 @@ export const demoStore = {
   },
 
   addSaved(item: Omit<SavedItem, "id" | "createdAt">): string {
-    const id = `demo-saved-${Date.now()}`
+    const id = nextId("demo-saved")
     store().saved.unshift({ ...item, id, createdAt: Date.now() })
     return id
   },

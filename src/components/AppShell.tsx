@@ -81,8 +81,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!user) return <Landing />
 
+  // next.config의 trailingSlash 때문에 pathname은 "/history/"처럼 들어온다.
+  // 라우트 표(NAV·EDITION)의 키는 슬래시 없는 쪽이라 여기서 맞춰준다.
+  const route = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname
+
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href)
+    href === "/" ? route === "/" : route.startsWith(href)
 
   return (
     <div className="mx-auto max-w-6xl px-0 py-0 md:px-8 md:py-8">
@@ -123,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
 
             <span className="label-sm ml-auto md:hidden">
-              {EDITION[pathname] ?? "No. " + (profile?.totalEntries ?? 0)}
+              {EDITION[route] ?? "No. " + (profile?.totalEntries ?? 0)}
             </span>
           </div>
         </header>
@@ -253,25 +257,42 @@ function DemoBanner() {
   )
 }
 
-/** 구획 머리말 — 번호 + 제목 + 오른쪽 메타. 모든 화면이 같은 리듬으로 시작한다. */
+/**
+ * 구획 머리말 — 번호 + 제목, 오른쪽에 메타나 조작부, 그 아래 설명.
+ * 모든 화면이 같은 리듬으로 시작한다.
+ *
+ * meta는 글자(날짜·개수)라 제목과 밑줄을 공유하지만, action은 버튼이나
+ * 필터라서 괘선 아래로 내린다. 컨트롤을 괘선 위에 올리면 제목보다 먼저
+ * 눈에 들어와서 머리말이 도구 모음처럼 보인다.
+ */
 export function PageHeader({
   no,
   title,
   meta,
+  description,
+  action,
 }: {
   no?: string
   title: ReactNode
   meta?: ReactNode
-  /** 이전 API 호환 */
-  eyebrow?: string
   description?: ReactNode
   action?: ReactNode
 }) {
   return (
-    <div className="mb-6 flex items-baseline gap-3 border-b border-ink pb-2.5">
-      {no && <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-pen">{no}</span>}
-      <h1 className="text-[15px] font-semibold">{title}</h1>
-      {meta && <span className="label-sm ml-auto">{meta}</span>}
+    <div className="mb-6">
+      <div className="flex items-baseline gap-3 border-b border-ink pb-2.5">
+        {no && <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-pen">{no}</span>}
+        <h1 className="text-[15px] font-semibold">{title}</h1>
+        {meta && <span className="label-sm ml-auto">{meta}</span>}
+      </div>
+      {(description || action) && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          {description && (
+            <p className="max-w-prose text-sm text-ink-3">{description}</p>
+          )}
+          {action && <div className="ml-auto">{action}</div>}
+        </div>
+      )}
     </div>
   )
 }

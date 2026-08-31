@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRadioGroupKeys } from "@/lib/a11y"
 
 /**
  * 본문 글자 크기 조절. 일기는 오래 들여다보는 화면이라
@@ -8,12 +9,17 @@ import { useEffect, useRef, useState } from "react"
  */
 export const TEXT_SIZES = [19, 24, 30, 38, 47] as const
 const STORAGE = "echodiary.textSize"
+const DEFAULT_INDEX = 2
 
 export function useTextSize() {
-  const [index, setIndex] = useState(2)
+  const [index, setIndex] = useState(DEFAULT_INDEX)
 
   useEffect(() => {
-    const stored = Number(window.localStorage.getItem(STORAGE))
+    // 저장값이 없으면 getItem은 null인데 Number(null)은 0이다. 그대로 두면
+    // 처음 온 사람에게 기본값 대신 가장 작은 글씨가 걸린다.
+    const raw = window.localStorage.getItem(STORAGE)
+    if (raw === null) return
+    const stored = Number(raw)
     if (Number.isInteger(stored) && stored >= 0 && stored < TEXT_SIZES.length) {
       setIndex(stored)
     }
@@ -36,6 +42,7 @@ export function TextSizeControl({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [bar, setBar] = useState({ x: 0, w: 0 })
+  const onKeyDown = useRadioGroupKeys(TEXT_SIZES.length, index, onChange)
 
   // 선택된 버튼 아래로 미끄러지는 표시선. 버튼마다 폭이 달라서 실제 위치를 잰다.
   useEffect(() => {
@@ -50,6 +57,7 @@ export function TextSizeControl({
       ref={wrapRef}
       role="radiogroup"
       aria-label="본문 크기"
+      onKeyDown={onKeyDown}
       className="relative flex items-baseline gap-0.5 pb-1.5"
     >
       <span

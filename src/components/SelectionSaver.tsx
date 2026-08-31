@@ -85,23 +85,30 @@ export function SelectionSaver({
 
   const save = async () => {
     if (!user || !popup || saved) return
-    await addSaved(user.uid, {
-      kind: "selection",
-      sourceId: `${entryId}-sel-${popup.text.slice(0, 40)}`,
-      entryId,
-      dateKey,
-      front: popup.text,
-      back: "",
-      note: findSentence(sourceText, popup.text),
-    })
-    invalidateSaved()
+    try {
+      await addSaved(user.uid, {
+        kind: "selection",
+        sourceId: `${entryId}-sel-${popup.text.slice(0, 40)}`,
+        entryId,
+        dateKey,
+        front: popup.text,
+        back: "",
+        note: findSentence(sourceText, popup.text),
+      })
+      invalidateSaved()
 
-    // 북마크 버튼으로 담을 때와 같은 보상을 준다.
-    await award(user.uid, {
-      exp: EXP.saved,
-      quests: [{ id: "once_saved", set: (await listSaved(user.uid)).length }],
-    })
-    await refreshProfile()
+      // 북마크 버튼으로 담을 때와 같은 보상을 준다.
+      await award(user.uid, {
+        exp: EXP.saved,
+        quests: [{ id: "once_saved", set: (await listSaved(user.uid)).length }],
+      })
+      await refreshProfile()
+    } catch (e) {
+      // 담기지 않았는데 "저장됨"이 뜨면 안 된다. 팝업을 닫지 않고 남겨서
+      // 다시 눌러볼 수 있게 둔다.
+      console.error("표현을 담지 못했습니다:", e)
+      return
+    }
 
     setSaved(true)
     window.setTimeout(dismiss, 900)

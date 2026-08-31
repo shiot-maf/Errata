@@ -12,6 +12,8 @@ import type { SavedItem } from "@/lib/types"
  * 교정 카드마다 각자 Firestore를 읽으면 낭비라서, 한 번 읽고 나눠 쓴다.
  */
 let cache: SavedItem[] | null = null
+/** 캐시가 어느 계정의 것인지. 로그아웃하거나 계정을 바꾸면 남의 목록을 보여주면 안 된다. */
+let cachedUid: string | null = null
 const listeners = new Set<() => void>()
 
 function notify() {
@@ -25,11 +27,22 @@ export function useSavedIndex() {
   useEffect(() => {
     const listener = () => force((n) => n + 1)
     listeners.add(listener)
+
+    if (user && cachedUid !== user.uid) {
+      cache = null
+      cachedUid = user.uid
+    }
+
     if (cache === null && user) {
-      void listSaved(user.uid).then((items) => {
-        cache = items
-        notify()
-      })
+      const uid = user.uid
+      void listSaved(uid)
+        .then((items) => {
+          // 기다리는 사이에 계정이 바뀌었으면 그 결과는 버린다.
+          if (cachedUid !== uid) return
+          cache = items
+          notify()
+        })
+        .catch(() => {})
     }
     return () => {
       listeners.delete(listener)
@@ -73,8 +86,13 @@ export function SaveButton({
         })
         await refreshProfile()
       }
-      notify()
+    } catch (e) {
+      // 오프라인이면 여기로 온다. 캐시를 버려서 다음 렌더가 진짜 상태를
+      // 다시 읽게 하고, 북마크 아이콘이 저장된 척하지 않게 한다.
+      console.error("저장함을 갱신하지 못했습니다:", e)
+      cache = null
     } finally {
+      notify()
       setBusy(false)
     }
   }

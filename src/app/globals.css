@@ -48,6 +48,18 @@
 
 :root {
   color-scheme: light;
+
+  /*
+   * 다른 토큰을 가리키는 별칭. @theme이 아니라 여기 두는 이유는, @theme의
+   * 변수는 유틸리티 클래스로 쓰이지 않으면 빌드에서 사라질 수 있기 때문이다.
+   * 이 둘은 인라인 style의 var()로만 쓰이므로 :root에 직접 박아둔다.
+   */
+  /* "틀린 것"의 색 — 값이 아니라 빨간펜을 가리킨다. 테마가 바뀌면 pen이
+     먼저 바뀌고 이쪽은 따라온다. */
+  --color-bad: var(--color-pen);
+  /* 일기 본문 서체. 글자 크기 조절기의 견본 'A'가 이걸 따른다. */
+  --font-content: var(--font-sans);
+
   --grid: hsl(36 16% 92%);
   --sheet-shadow:
     0 1px 2px hsl(30 10% 12% / 0.05),

@@ -8,7 +8,7 @@ import { Empty, Loading, Pill, SectionTitle, Segmented, Stat, Tag } from "@/comp
 import { ActivityHeatmap, CategoryBars, GroupSplit, Sparkline } from "@/components/charts"
 import { CorrectionCard } from "@/components/CorrectionCard"
 import { listEntries, listMistakes } from "@/lib/firebase/db"
-import { buildOverview } from "@/lib/analysis/aggregate"
+import { ERROR_RATE_TREND_MIN_ENTRIES, buildOverview } from "@/lib/analysis/aggregate"
 import { CATEGORY_GROUPS, categoryColor, getCategory } from "@/lib/taxonomy"
 import { formatKo } from "@/lib/dates"
 import type { Entry, Mistake } from "@/lib/types"
@@ -131,7 +131,7 @@ export default function ReportPage() {
           value={overview.errorRate.toFixed(1)}
           sub={
             overview.errorRateTrend === null
-              ? "추이는 일기 4편부터"
+              ? `추이는 첨삭받은 일기 ${ERROR_RATE_TREND_MIN_ENTRIES}편부터`
               : overview.errorRateTrend < 0
                 ? `최근 5편 ${Math.abs(overview.errorRateTrend).toFixed(1)} 감소`
                 : `최근 5편 ${overview.errorRateTrend.toFixed(1)} 증가`
