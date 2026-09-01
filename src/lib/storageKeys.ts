@@ -13,6 +13,11 @@ export const STORAGE_KEYS = {
   /** "이 기기에서 기억"을 켰는지 */
   rememberKey: "echodiary.rememberKey",
   model: "echodiary.model",
+  /**
+   * Anthropic 워크스페이스 id. 키가 아니라 어느 워크스페이스로 청구할지를
+   * 가리키는 이름표라서 비밀이 아니고, 기기에 그대로 남긴다.
+   */
+  workspaceId: "echodiary.workspaceId",
   textSize: "echodiary.textSize",
   /** 아직 저장하지 않은 일기 */
   draft: "echodiary.draft",

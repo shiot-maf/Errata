@@ -217,6 +217,23 @@ Haiku 4.5로 바꿀 수 있습니다. 첨삭은 하루 한 번 200단어 남짓�
 나중에 서버 프록시로 바꾸려면 `src/lib/ai/client.ts`의 `requestFeedback` 하나만
 `/api/feedback` 호출로 갈아끼우면 됩니다. 나머지 코드는 손댈 게 없습니다.
 
+### 워크스페이스 ID
+
+콘솔의 키에는 두 종류가 있습니다. **워크스페이스에 매인 키**는 어디로 청구할지가
+키 자체에 적혀 있어 그냥 쓰면 되지만, **계정에 매인 키**(identity-linked)는 여러
+워크스페이스에 걸쳐 있어서 이번 요청이 어느 워크스페이스 몫인지 헤더로 알려줘야
+합니다. 안 보내면 이렇게 돌아옵니다.
+
+```
+400 anthropic-workspace-id is required when authenticating with
+    an identity-linked API key
+```
+
+설정 → Anthropic API 키 아래 접힌 칸에 `wrkspc_…`를 넣으면
+`anthropic-workspace-id` 헤더로 함께 보냅니다. 값을 넣어둔 경우에만 보냅니다 —
+워크스페이스 키에 이 헤더를 붙이면 거절당할 수 있습니다. 이 값은 비밀이
+아니므로(키가 없으면 아무것도 못 합니다) `localStorage`에 그대로 둡니다.
+
 ## 데모 모드로 둘러보기
 
 로그인도 API 키도 없이 앱 전체를 눌러볼 수 있습니다.
@@ -253,7 +270,8 @@ npm run build       # 정적 내보내기까지
 `firestore.rules`가 담당합니다.)
 
 첨삭을 쓰려면 [Anthropic 콘솔](https://console.anthropic.com/settings/keys)에서 키를
-발급받아 설정 화면에 넣으면 됩니다.
+발급받아 설정 화면에 넣으면 됩니다. 계정에 매인 키라면 워크스페이스 ID도 함께
+넣어야 합니다 — 위의 [워크스페이스 ID](#워크스페이스-id)를 보세요.
 
 ## 배포
 
