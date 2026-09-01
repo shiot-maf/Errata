@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { PageHeader } from "@/components/AppShell"
-import { Loading, Pill } from "@/components/ui"
+import { Loading } from "@/components/ui"
 import { ProfileSheet, type ProfileSummary } from "@/components/ProfileSheet"
 import { listEntries, listMistakes, listSaved } from "@/lib/firebase/db"
 import { dailyActivity } from "@/lib/analysis/aggregate"
@@ -33,8 +33,8 @@ interface Loaded {
   now: number
 }
 
-/** 히트맵에 그릴 기간 */
-const ACTIVITY_DAYS = 120
+/** 잔디에 그릴 기간 — 1년치가 화면 맨 위에 선다 */
+const ACTIVITY_DAYS = 365
 
 /**
  * 개념 진행에 몇 줄까지 보여줄지.
@@ -109,13 +109,32 @@ export default function ProfilePage() {
         title="내 기록"
         meta={demo ? "데모" : undefined}
         description="쓴 것과 뗀 것을 한 장에 모았어요."
-        action={
-          <Link href="/settings">
-            <Pill variant="quiet">설정</Pill>
-          </Link>
-        }
       />
       <ProfileSheet summary={summary} />
+
+      {/*
+        설정은 이 화면 안에 산다 — 탭 한 자리를 차지하기엔 다시 열 일이
+        드물지만, 어디 있는지 모르면 안 되는 것들이라 이름을 다 적어둔다.
+        ProfileSheet 밖에 두는 이유는 하나다. 저 컴포넌트는 나중에 남이 보는
+        프로필에도 그대로 쓴다. 내 설정 입구가 거기 섞여 있으면 안 된다.
+      */}
+      <section className="mt-12 border-t border-ink pt-6">
+        <Link
+          href="/settings"
+          className="group flex items-baseline gap-3 hover:text-ink"
+        >
+          <span className="text-[15px] font-semibold">설정</span>
+          <span
+            aria-hidden
+            className="label-sm ml-auto transition-transform group-hover:translate-x-0.5"
+          >
+            열기 →
+          </span>
+        </Link>
+        <p className="mt-2 max-w-prose text-sm text-ink-3">
+          API 키와 모델, 글자 크기, 주간 목표, 일기 백업(JSON·마크다운), 계정.
+        </p>
+      </section>
     </div>
   )
 }

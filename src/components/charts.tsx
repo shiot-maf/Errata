@@ -138,13 +138,28 @@ export function GroupSplit({ groups }: { groups: GroupStat[] }) {
   )
 }
 
-/** 작성 히트맵 — 잔디. 습관이 유지되는지 보여준다. */
+/**
+ * 작성 히트맵 — 잔디. 습관이 유지되는지 보여준다.
+ *
+ * 리포트에서는 최근 넉 달을 작게 곁들이고, 프로필에서는 1년치를 화면
+ * 맨 위에 세운다. 그래서 칸 크기와 달 이름을 밖에서 정할 수 있게 뒀다.
+ */
 export function ActivityHeatmap({
   activity,
+  cell = 12,
+  gap = 3,
+  showMonths = false,
 }: {
   activity: { dateKey: string; words: number; entries: number }[]
+  /** 칸 한 변의 px */
+  cell?: number
+  /** 칸 사이 px */
+  gap?: number
+  /** 열 위에 달 이름을 붙인다 (1년치처럼 긴 기간에서만 쓸모가 있다) */
+  showMonths?: boolean
 }) {
   const maxWords = Math.max(1, ...activity.map((a) => a.words))
+  const step = cell + gap
 
   // 주 단위 열로 쌓는다. 첫 열의 앞부분은 빈 칸으로 채워 요일을 맞춘다.
   //
@@ -159,11 +174,27 @@ export function ActivityHeatmap({
   const weeks: (typeof activity)[number][][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
+  // 달이 바뀌는 열에만 이름을 붙인다. 첫 열은 반쯤 잘린 달이라 건너뛴다.
+  const monthMarks: { at: number; label: string }[] = []
+  if (showMonths) {
+    let last = -1
+    weeks.forEach((week, wi) => {
+      const first = week.find(Boolean)
+      if (!first) return
+      const month = fromDateKey(first.dateKey).getMonth()
+      if (month !== last) {
+        if (last !== -1) monthMarks.push({ at: wi, label: `${month + 1}월` })
+        last = month
+      }
+    })
+  }
+
   // 칸 하나하나는 title 속성으로만 설명돼 있어서 읽어주지도, 키보드로 닿지도
   // 않는다. 잔디가 말하려는 건 결국 "얼마나 꾸준했나"이므로 그걸 한 줄로 준다.
   const activeDays = activity.filter((a) => a.entries > 0).length
   const totalWords = activity.reduce((sum, a) => sum + a.words, 0)
-  const summary = `최근 ${activity.length}일 중 ${activeDays}일 작성, 모두 ${totalWords.toLocaleString()}단어`
+  const span = activity.length >= 360 ? "최근 1년" : `최근 ${activity.length}일`
+  const summary = `${span} 중 ${activeDays}일 작성, 모두 ${totalWords.toLocaleString()}단어`
 
   return (
     <div
@@ -172,33 +203,49 @@ export function ActivityHeatmap({
       aria-label={summary}
       tabIndex={0}
     >
-      <div className="flex gap-[3px]" aria-hidden>
-        {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-[3px]">
-            {Array.from({ length: 7 }, (_, di) => {
-              const cell = week[di]
-              if (!cell) return <div key={di} className="h-3 w-3" />
-              const level = cell.words === 0 ? 0 : Math.ceil((cell.words / maxWords) * 4)
-              return (
-                <div
-                  key={di}
-                  className="h-3 w-3"
-                  style={{
-                    background:
-                      level === 0
-                        ? "var(--color-rule-2)"
-                        : `color-mix(in srgb, var(--color-ink) ${12 + level * 22}%, transparent)`,
-                  }}
-                  title={
-                    cell.entries
-                      ? `${formatKo(cell.dateKey)} · ${cell.words}단어`
-                      : formatKo(cell.dateKey)
-                  }
-                />
-              )
-            })}
+      <div aria-hidden style={{ width: weeks.length * step }}>
+        {showMonths && (
+          <div className="relative mb-1.5 h-3">
+            {monthMarks.map((m) => (
+              <span
+                key={m.at}
+                className="absolute top-0 font-mono text-[9px] tracking-[0.06em] text-ink-3"
+                style={{ left: m.at * step }}
+              >
+                {m.label}
+              </span>
+            ))}
           </div>
-        ))}
+        )}
+        <div className="flex" style={{ gap }}>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="flex flex-col" style={{ gap }}>
+              {Array.from({ length: 7 }, (_, di) => {
+                const c = week[di]
+                if (!c) return <div key={di} style={{ width: cell, height: cell }} />
+                const level = c.words === 0 ? 0 : Math.ceil((c.words / maxWords) * 4)
+                return (
+                  <div
+                    key={di}
+                    style={{
+                      width: cell,
+                      height: cell,
+                      background:
+                        level === 0
+                          ? "var(--color-rule-2)"
+                          : `color-mix(in srgb, var(--color-ink) ${12 + level * 22}%, transparent)`,
+                    }}
+                    title={
+                      c.entries
+                        ? `${formatKo(c.dateKey)} · ${c.words}단어`
+                        : formatKo(c.dateKey)
+                    }
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

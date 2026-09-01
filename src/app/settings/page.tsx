@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { PageHeader } from "@/components/AppShell"
 import { ErrorNote, Pill, Section } from "@/components/ui"
@@ -88,7 +89,15 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader no="01" title="설정" />
+      <PageHeader
+        no="01"
+        title="설정"
+        meta={
+          <Link href="/profile" className="hover:text-ink">
+            ← 프로필
+          </Link>
+        }
+      />
 
       {/* 저장·내보내기 결과는 이 한 줄로만 알려준다 — 소리로도 들려야 한다 */}
       <p role="status" className="text-sm text-ink-3 empty:hidden">

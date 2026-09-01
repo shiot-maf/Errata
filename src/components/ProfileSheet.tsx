@@ -40,20 +40,44 @@ export interface ProfileSummary {
 export function ProfileSheet({ summary }: { summary: ProfileSummary }) {
   return (
     <div className="space-y-12">
+      {/*
+        1년치 잔디가 맨 위에 온다.
+        
+        레벨과 칭호는 앱이 매긴 값이지만 이 격자는 실제로 한 날이 그대로
+        찍힌 것이다. 이 화면에서 가장 먼저 볼 것이 그거라서 주인공 자리를
+        준다. 이름과 지표는 그 아래에서 격자를 설명한다.
+      */}
+      <YearStamp activity={summary.activity} />
       <Identity summary={summary} />
       <LevelBlock level={summary.level} exp={summary.exp} />
       <Titles titles={summary.titles} />
       <Counted summary={summary} />
       <Concepts concepts={summary.concepts} progress={summary.progress} />
-
-      <section>
-        <p className="label mb-3 border-b border-ink pb-2.5">기록</p>
-        <ActivityHeatmap activity={summary.activity} />
-        <p className="mt-3 text-xs text-ink-3">
-          최근 {summary.activity.length}일. 짙을수록 그날 많이 썼어요.
-        </p>
-      </section>
     </div>
+  )
+}
+
+// ── 1년의 도장 ─────────────────────────────────────────────────────
+
+function YearStamp({ activity }: { activity: ProfileSummary["activity"] }) {
+  const days = activity.filter((a) => a.entries > 0).length
+  const words = activity.reduce((sum, a) => sum + a.words, 0)
+  const span = activity.length >= 360 ? "최근 1년" : `최근 ${activity.length}일`
+
+  return (
+    <section>
+      <div className="mb-4 flex items-baseline gap-3 border-b border-ink pb-2.5">
+        <p className="label">{span}</p>
+        <p className="label-sm ml-auto">
+          <b className="tabnum font-semibold text-ink">{days}</b>일 작성 ·{" "}
+          <b className="tabnum font-semibold text-ink">{words.toLocaleString()}</b>단어
+        </p>
+      </div>
+      <ActivityHeatmap activity={activity} cell={10} gap={3} showMonths />
+      <p className="mt-3 text-xs text-ink-3">
+        하루가 한 칸이고, 그날 쓴 만큼 짙어집니다. 빈 칸도 기록이에요.
+      </p>
+    </section>
   )
 }
 
