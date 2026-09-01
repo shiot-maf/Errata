@@ -40,15 +40,17 @@ export interface CompatPreset {
 /*
  * 미리 채워두는 곳들.
  *
- * 모델 이름은 자주 바뀐다. 그래서 이 값은 "처음 채워두는 값"일 뿐이고,
- * 설정 화면에서 제공자에게 목록을 물어 고를 수 있게 해뒀다.
+ * 모델 이름은 여기 적힌 순간부터 낡기 시작한다. 실제로 처음 붙였을 때
+ * 적어둔 gemini-2.5-flash는 배포하자마자 404가 났다. 그래서 이 값은
+ * "처음 채워두는 값"일 뿐이고, 진짜 이름은 설정 화면이 제공자의 /models에
+ * 직접 물어본다. 키를 넣고 제공자를 고르면 그 목록을 바로 불러온다.
  */
 export const COMPAT_PRESETS: CompatPreset[] = [
   {
     id: "gemini",
     label: "Google Gemini (AI Studio)",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     keyUrl: "https://aistudio.google.com/apikey",
     note: "구글 계정이면 무료 티어가 있어요. Google One 구독과는 별개로, 키는 AI Studio에서 따로 받습니다.",
   },
