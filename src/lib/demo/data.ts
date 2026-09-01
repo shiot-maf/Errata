@@ -1096,6 +1096,7 @@ export function demoData() {
     profile: {
       uid: "demo-user",
       displayName: "데모 사용자",
+      handle: "demo_writer",
       email: "demo@errata.app",
       photoURL: null,
       // 가장 오래된 일기(66일 전)보다 앞서야 앞뒤가 맞는다

@@ -63,6 +63,8 @@ export async function ensureProfile(user: {
   const profile: UserProfile = {
     uid: user.uid,
     displayName: user.displayName,
+    // 핸들은 가입 직후에 따로 잡는다 — 유일성 때문에 별도 컬렉션을 쓴다
+    handle: null,
     email: user.email,
     photoURL: user.photoURL,
     createdAt: Date.now(),

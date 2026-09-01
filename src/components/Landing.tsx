@@ -9,6 +9,7 @@ import {
   signInWithGoogle,
   signUpWithEmail,
 } from "@/lib/firebase/auth"
+import { HandleInput, useHandleCheck } from "./HandleField"
 import { ErrorNote } from "./ui"
 
 /**
@@ -24,8 +25,10 @@ type Mode = "signin" | "signup"
 export function Landing() {
   const [mode, setMode] = useState<Mode>("signin")
   const [name, setName] = useState("")
+  const [handle, setHandle] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const check = useHandleCheck(handle)
 
   const [busy, setBusy] = useState<null | "email" | "google" | "reset">(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +55,9 @@ export function Landing() {
     e.preventDefault()
     if (busy) return
     await run("email", () =>
-      signup ? signUpWithEmail(name, email, password) : signInWithEmail(email, password),
+      signup
+        ? signUpWithEmail(name, email, password, check.handle || undefined)
+        : signInWithEmail(email, password),
     )
   }
 
@@ -148,6 +153,21 @@ export function Landing() {
                 </Field>
               )}
 
+              {signup && (
+                <Field
+                  label="핸들 (선택)"
+                  hint="친구를 찾고 프로필을 가리키는, 겹치지 않는 이름이에요. 나중에 정해도 됩니다."
+                >
+                  <HandleInput
+                    value={handle}
+                    onChange={setHandle}
+                    state={check.state}
+                    reason={check.reason}
+                    id="signup-handle"
+                  />
+                </Field>
+              )}
+
               <Field label="이메일">
                 <input
                   type="email"
@@ -175,7 +195,10 @@ export function Landing() {
               <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-2">
                 <button
                   type="submit"
-                  disabled={busy !== null}
+                  disabled={
+                    busy !== null ||
+                    (signup && (check.state === "taken" || check.state === "invalid"))
+                  }
                   aria-busy={busy === "email"}
                   className="w-full bg-ink px-6 py-4 font-mono text-xs font-semibold tracking-[0.14em] text-sheet uppercase transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
                 >

@@ -1,9 +1,11 @@
 "use client"
 
 import Image from "next/image"
+import type { ReactNode } from "react"
 import { ActivityHeatmap } from "./charts"
 import { expToNext } from "@/lib/game"
 import { categoryColor, getCategory } from "@/lib/taxonomy"
+import { formatHandle } from "@/lib/handle"
 
 /**
  * 프로필 화면이 쓰는 값 전부.
@@ -15,6 +17,8 @@ import { categoryColor, getCategory } from "@/lib/taxonomy"
  */
 export interface ProfileSummary {
   displayName: string | null
+  /** 겹치지 않는 이름 (@ 없이). 아직 안 정했으면 null */
+  handle: string | null
   photoURL: string | null
   /** 계정을 만든 시각 (ms) */
   since: number
@@ -37,7 +41,14 @@ export interface ProfileSummary {
   activity: { dateKey: string; words: number; entries: number }[]
 }
 
-export function ProfileSheet({ summary }: { summary: ProfileSummary }) {
+export function ProfileSheet({
+  summary,
+  handleAction,
+}: {
+  summary: ProfileSummary
+  /** 내 프로필일 때만 오는 핸들 조작부. 남의 프로필에는 오지 않는다. */
+  handleAction?: ReactNode
+}) {
   return (
     <div className="space-y-12">
       {/*
@@ -48,7 +59,7 @@ export function ProfileSheet({ summary }: { summary: ProfileSummary }) {
         준다. 이름과 지표는 그 아래에서 격자를 설명한다.
       */}
       <YearStamp activity={summary.activity} />
-      <Identity summary={summary} />
+      <Identity summary={summary} handleAction={handleAction} />
       <LevelBlock level={summary.level} exp={summary.exp} />
       <Titles titles={summary.titles} />
       <Counted summary={summary} />
@@ -83,7 +94,13 @@ function YearStamp({ activity }: { activity: ProfileSummary["activity"] }) {
 
 // ── 이름 판 ────────────────────────────────────────────────────────
 
-function Identity({ summary }: { summary: ProfileSummary }) {
+function Identity({
+  summary,
+  handleAction,
+}: {
+  summary: ProfileSummary
+  handleAction?: ReactNode
+}) {
   const name = summary.displayName?.trim() || "이름 없음"
   return (
     <section className="flex items-start gap-5">
@@ -107,7 +124,13 @@ function Identity({ summary }: { summary: ProfileSummary }) {
 
       <div className="min-w-0">
         <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{name}</h2>
+        {summary.handle && (
+          <p className="mt-1 truncate font-mono text-sm text-ink-3">
+            {formatHandle(summary.handle)}
+          </p>
+        )}
         <p className="label-sm mt-1.5">{formatSince(summary.since)}부터</p>
+        {handleAction}
         <p className="mt-3 text-sm text-ink-2">
           지금{" "}
           <b className={`tabnum font-semibold ${summary.wroteToday ? "" : "text-pen"}`}>
