@@ -476,9 +476,11 @@ async function httpError(
     )
   }
   if (res.status === 404) {
+    // 모델 이름이 낡아서 나는 경우가 대부분이다. 이름을 지어내지 말고
+    // 제공자에게 물어보라고 알려준다 — 설정에 그 버튼이 있다.
     return new FeedbackError(
-      `${who}에서 그 모델이나 주소를 찾지 못했어요. 설정의 모델 이름을 확인해주세요. ${apiMessage(body) ?? ""}`.trim(),
-      "server",
+      `${who}에 그 모델이 없어요. 설정에서 “모델 목록 불러오기”를 눌러 지금 쓸 수 있는 이름을 골라주세요. ${apiMessage(body) ?? ""}`.trim(),
+      "config",
     )
   }
   /*

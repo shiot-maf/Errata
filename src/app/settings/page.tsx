@@ -390,6 +390,9 @@ function CompatSection({
     setModels(null)
     setCompatEndpoint(found.baseUrl, found.model)
     onStatus(`${found.label}(으)로 맞췄어요.`)
+    // 미리 채워둔 모델 이름은 낡기 마련이다. 키가 있으면 지금 쓸 수 있는
+    // 이름을 바로 물어본다 — 사용자가 404를 만난 뒤에 알게 할 이유가 없다.
+    if (hasKey) void loadModels(found.baseUrl)
   }
 
   const saveEndpoint = () => {
@@ -403,13 +406,14 @@ function CompatSection({
     setApiKey(keyValue, remember, "compat")
     setKeyValue("")
     onStatus("제공자 키를 저장했어요.")
+    if (baseUrl.trim()) void loadModels()
   }
 
-  const loadModels = async () => {
+  const loadModels = async (url = baseUrl) => {
     setLoading(true)
     onError(null)
     try {
-      const list = await listCompatModels(baseUrl, getApiKey("compat") ?? "")
+      const list = await listCompatModels(url, getApiKey("compat") ?? "")
       setModels(list)
       onStatus(`모델 ${list.length}개를 불러왔어요.`)
     } catch (e) {
@@ -510,9 +514,13 @@ function CompatSection({
           모델 목록 불러오기
         </Pill>
       </div>
-      {!hasKey && (
-        <p className="text-xs text-ink-3">모델 목록을 물어보려면 키를 먼저 저장해주세요.</p>
-      )}
+      <p className="max-w-prose text-xs text-ink-3">
+        {!hasKey
+          ? "모델 목록을 물어보려면 키를 먼저 저장해주세요."
+          : models
+            ? `지금 쓸 수 있는 모델 ${models.length}개 중에서 고르는 중이에요.`
+            : "위 모델 이름은 미리 채워둔 값이라 낡았을 수 있어요. 목록을 불러오면 지금 쓸 수 있는 이름만 나옵니다."}
+      </p>
 
       <div className="border-t border-rule-2 pt-4">
         <p className="text-sm text-ink-2">
