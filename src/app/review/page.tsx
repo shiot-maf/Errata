@@ -16,6 +16,7 @@ import {
   buildDeck,
   categoryProgress,
   daysUntil,
+  dueCount,
   gradeAnswer,
   questionKind,
   type Deck,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/review/schedule"
 import { categoryColor, getCategory } from "@/lib/taxonomy"
 import { masteredCategories } from "@/lib/review/insight"
+import { publishDueCount } from "@/lib/review/dueSignal"
 import { formatKo } from "@/lib/dates"
 import type { Mistake } from "@/lib/types"
 
@@ -67,6 +69,7 @@ export default function ReviewPage() {
         const now = Date.now()
         setMistakes(all)
         setSession({ deck: buildDeck(all, { now }), now })
+        publishDueCount(dueCount(all, now))
       })
       .catch(() => {
         if (!cancelled) setMistakes([])
@@ -126,6 +129,7 @@ export default function ReviewPage() {
         : m,
     )
     setMistakes(updated)
+    publishDueCount(dueCount(updated))
 
     // 개념을 뗀 순간은 졸업이 하나 늘어난 직후뿐이다. 그때만 확인한다.
     const held = profile?.titles ?? []
@@ -211,6 +215,12 @@ export default function ReviewPage() {
           title="복습"
           meta={`${answeredCount} / ${deck.size}`}
         />
+        {blockIndex === 0 && deck.waiting > 0 && (
+          <p className="border-y border-rule-2 py-3 text-xs text-ink-3">
+            오늘 몫은 {deck.size}문제예요. 밀린 {deck.waiting}개는 다음에 나옵니다 —
+            한 번에 다 몰아 풀면 남는 게 없어요.
+          </p>
+        )}
         <ConceptCard
           slug={block.category}
           mistakes={mistakes}

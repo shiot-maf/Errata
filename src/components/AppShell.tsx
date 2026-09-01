@@ -6,8 +6,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { appUrl } from "@/lib/basePath"
 import { useAuth } from "./AuthProvider"
 import { signInWithGoogle, signOutUser } from "@/lib/firebase/auth"
-import { listEntries, refreshQuests } from "@/lib/firebase/db"
-import { currentWeekKeys } from "@/lib/dates"
+import { listEntries, listMistakes, refreshQuests } from "@/lib/firebase/db"
+import { currentWeekKeys, toDateKey } from "@/lib/dates"
+import { dueCount } from "@/lib/review/schedule"
+import { onDueCount } from "@/lib/review/dueSignal"
+import { expToNext } from "@/lib/game"
 import { MonthCalendar } from "./MonthCalendar"
 import { QuestPanel } from "./QuestPanel"
 import { WeeklyGoal } from "./WeeklyGoal"
@@ -17,6 +20,7 @@ import {
   Clock,
   PenLine,
   Repeat,
+  Flame,
   Settings as SettingsIcon,
   Spinner,
 } from "./icons"
@@ -45,20 +49,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, profile, loading, demo } = useAuth()
   const pathname = usePathname()
   const [entries, setEntries] = useState<Entry[]>([])
+  const [due, setDue] = useState(0)
 
   // 주간 목표와 캘린더가 같은 목록을 쓰므로 한 번만 읽는다.
+  // 밀린 복습 수도 여기서 한 번 센다.
   useEffect(() => {
     if (!user) return
     let cancelled = false
-    listEntries(user.uid, 400)
-      .then((list) => {
-        if (!cancelled) setEntries(list)
+    Promise.all([listEntries(user.uid, 400), listMistakes(user.uid, 2000)])
+      .then(([list, mistakes]) => {
+        if (cancelled) return
+        setEntries(list)
+        setDue(dueCount(mistakes))
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [user, profile?.totalEntries])
+
+  // 복습을 한 문제 풀 때마다 밀린 수가 줄어든다. 그때마다 2000건을 다시 읽는
+  // 대신, 목록을 손에 들고 있는 복습 화면이 셈만 넘겨준다.
+  useEffect(() => onDueCount(setDue), [])
 
   // 자정에 도는 스케줄러가 없으니 앱을 열 때 지난 퀘스트를 되돌린다.
   useEffect(() => {
@@ -70,6 +82,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     const week = new Set(currentWeekKeys())
     return new Set(entries.filter((e) => week.has(e.dateKey)).map((e) => e.dateKey)).size
   }, [entries])
+
+  // 스트릭이 걸려 있는지 — 오늘 아직 안 썼으면 판권줄이 빨간펜으로 바뀐다.
+  // 습관 앱에서 사람을 움직이는 건 자랑이 아니라 끊길 위기 쪽이다.
+  //
+  // 일기 목록이 아니라 프로필의 lastEntryDate를 본다. 목록은 나중에 도착하므로
+  // 그걸 기준으로 하면 불러오는 동안 "오늘 아직"이 잘못 번쩍인다.
+  const wroteToday = profile?.lastEntryDate === toDateKey()
 
   if (loading) {
     return (
@@ -149,17 +168,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="rule-double" />
 
-        {/* ── 판권줄 ── */}
-        <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-rule px-5 py-2 font-mono text-[10px] tracking-[0.1em] text-ink-3 uppercase md:px-12 md:text-[11px]">
+        {/* ── 판권줄 겸 지표 줄 ── */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-rule px-5 py-2 font-mono text-[10px] tracking-[0.1em] text-ink-3 uppercase md:px-12 md:text-[11px]">
           <span>
             {formatColophonDate()} <b className="font-semibold text-ink">{weekday()}</b>
           </span>
-          <span>
-            Streak <b className="font-semibold text-ink">{profile?.streak ?? 0}</b>
-          </span>
-          <span>
-            Lv <b className="font-semibold text-ink">{profile?.level ?? 1}</b>
-          </span>
+
+          <StreakMark streak={profile?.streak ?? 0} atRisk={!wroteToday} />
+          <LevelMark level={profile?.level ?? 1} exp={profile?.exp ?? 0} />
+
+          {due > 0 && (
+            <Link
+              href="/review"
+              className="text-pen underline-offset-2 hover:underline"
+            >
+              복습 <b className="font-semibold">{due}</b>
+            </Link>
+          )}
+
           <span className="ml-auto hidden md:inline">
             {(profile?.totalWords ?? 0).toLocaleString()} words logged ·{" "}
             {profile?.totalEntries ?? 0} entries
@@ -213,6 +239,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </aside>
         </div>
+
+        {/*
+          모바일에는 사이드바가 없어서 캘린더·주간 목표·퀘스트를 볼 방법이
+          아예 없었다. 접어둔 채로 같은 자리에 둔다.
+        */}
+        <details className="border-t border-rule md:hidden">
+          <summary className="label cursor-pointer px-5 py-3">
+            이번 달 · 주간 목표 · 진행
+          </summary>
+          <div className="space-y-6 px-5 pb-8">
+            <MonthCalendar entries={entries} />
+            <WeeklyGoal done={weekDone} />
+            <QuestPanel />
+          </div>
+        </details>
       </div>
 
       {/* ── 모바일 하단 탭 ── */}
@@ -222,6 +263,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {NAV.slice(0, 5).map(({ href, label, Icon }) => {
           const on = isActive(href)
+          const badge = href === "/review" && due > 0 ? due : null
           return (
             <Link
               key={href}
@@ -231,13 +273,80 @@ export function AppShell({ children }: { children: ReactNode }) {
                 on ? "text-ink" : "text-ink-3"
               }`}
             >
-              <Icon className={`h-[18px] w-[18px] ${on ? "text-pen" : ""}`} />
+              <span className="relative">
+                <Icon className={`h-[18px] w-[18px] ${on ? "text-pen" : ""}`} />
+                {badge !== null && (
+                  <span
+                    aria-hidden
+                    className="tabnum absolute -top-1.5 -right-2.5 bg-pen px-1 text-[9px] leading-[14px] font-semibold text-sheet"
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
+              </span>
               {label}
+              {badge !== null && <span className="sr-only">밀린 복습 {badge}개</span>}
             </Link>
           )
         })}
       </nav>
     </div>
+  )
+}
+
+/**
+ * 스트릭.
+ *
+ * 숫자만 적어두면 그냥 통계다. 오늘 아직 안 썼으면 색과 문구를 바꿔서
+ * "지금 끊길 수 있다"를 알린다 — 이 앱에서 사람을 다시 불러오는 건 이 한 줄이다.
+ */
+function StreakMark({ streak, atRisk }: { streak: number; atRisk: boolean }) {
+  if (streak === 0) {
+    return (
+      <span>
+        Streak <b className="font-semibold text-ink">0</b>
+      </span>
+    )
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${atRisk ? "text-pen" : ""}`}>
+      <Flame className={`h-3 w-3 ${atRisk ? "" : "text-ink"}`} />
+      <span>
+        Streak{" "}
+        <b className={`font-semibold ${atRisk ? "" : "text-ink"}`}>{streak}</b>
+      </span>
+      {atRisk && <span className="tracking-[0.06em]">· 오늘 아직</span>}
+    </span>
+  )
+}
+
+/** 레벨과 다음 레벨까지의 진행. 사이드바가 없는 모바일에서도 보여야 한다. */
+function LevelMark({ level, exp }: { level: number; exp: number }) {
+  const need = expToNext(level)
+  const pct = Math.min(100, Math.round((exp / need) * 100))
+  return (
+    <span
+      className="inline-flex items-center gap-2"
+      title={`다음 레벨까지 ${Math.max(0, need - exp)} EXP`}
+    >
+      <span>
+        Lv <b className="font-semibold text-ink">{level}</b>
+      </span>
+      <span
+        role="progressbar"
+        aria-label="다음 레벨까지"
+        aria-valuenow={exp}
+        aria-valuemin={0}
+        aria-valuemax={need}
+        aria-valuetext={`${need} 중 ${exp}`}
+        className="relative block h-[3px] w-10 bg-rule"
+      >
+        <span
+          className="absolute inset-y-0 left-0 bg-ink transition-[width] duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+    </span>
   )
 }
 

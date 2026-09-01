@@ -824,8 +824,9 @@ function seededBox(daysAgo: number, index: number): number {
 
 function seededDue(now: number, daysAgo: number, box: number): number {
   if (box >= 6) return now + 90 * 86_400_000 // 졸업 — 한참 뒤
-  // 오래된 것일수록 만기가 지나 있다. 오늘 밀린 게 몇 개는 있어야 한다.
-  const offset = ((daysAgo % 7) - 3) * 86_400_000
+  // 오늘 밀린 게 한 세션 분량은 돼야 복습 화면이 비어 보이지 않고, 그렇다고
+  // 다 밀려 있으면 겁만 준다. 대략 1/4이 만기 지난 상태가 되게 잡는다.
+  const offset = ((daysAgo % 11) - 2) * 86_400_000
   return now + offset
 }
 
