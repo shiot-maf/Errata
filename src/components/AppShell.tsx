@@ -43,6 +43,7 @@ const EDITION: Record<string, string> = {
   "/saved": "Saved",
   "/report": "Report",
   "/review": "Drill",
+  "/profile": "Profile",
   "/settings": "Settings",
 }
 
@@ -179,8 +180,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             {formatColophonDate()} <b className="font-semibold text-ink">{weekday()}</b>
           </span>
 
-          <StreakMark streak={profile?.streak ?? 0} atRisk={!wroteToday} />
-          <LevelMark level={profile?.level ?? 1} exp={profile?.exp ?? 0} />
+          {/*
+            레벨과 스트릭은 판권줄에 눌려 있기엔 이 앱에서 가장 자주 보는
+            숫자다. 눌러서 펼친 자리(프로필)로 가게 한다.
+          */}
+          <Link
+            href="/profile"
+            aria-label={profileLabel(profile, wroteToday)}
+            className="inline-flex flex-wrap items-center gap-x-5 gap-y-1.5 hover:text-ink"
+          >
+            <StreakMark streak={profile?.streak ?? 0} atRisk={!wroteToday} />
+            <LevelMark level={profile?.level ?? 1} exp={profile?.exp ?? 0} />
+          </Link>
 
           {due > 0 && (
             <Link
@@ -222,7 +233,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <QuestPanel />
               </SideBlock>
               <div className="border-t border-rule-2 pt-5">
-                <p className="truncate font-mono text-[10px] tracking-[0.06em] text-ink-3">
+                <Link
+                  href="/profile"
+                  className="label-sm block hover:text-ink"
+                >
+                  내 기록
+                </Link>
+                <p className="mt-2 truncate font-mono text-[10px] tracking-[0.06em] text-ink-3">
                   {user.email}
                 </p>
                 {demo ? (
@@ -337,15 +354,8 @@ function LevelMark({ level, exp }: { level: number; exp: number }) {
       <span>
         Lv <b className="font-semibold text-ink">{level}</b>
       </span>
-      <span
-        role="progressbar"
-        aria-label="다음 레벨까지"
-        aria-valuenow={exp}
-        aria-valuemin={0}
-        aria-valuemax={need}
-        aria-valuetext={`${need} 중 ${exp}`}
-        className="relative block h-[3px] w-10 bg-rule"
-      >
+      {/* 감싸는 링크의 이름이 같은 값을 말한다 — 두 번 읽히지 않게 숨긴다 */}
+      <span aria-hidden className="relative block h-[3px] w-10 bg-rule">
         <span
           className="absolute inset-y-0 left-0 bg-ink transition-[width] duration-500"
           style={{ width: `${pct}%` }}
@@ -353,6 +363,23 @@ function LevelMark({ level, exp }: { level: number; exp: number }) {
       </span>
     </span>
   )
+}
+
+/** 판권줄 링크가 스크린 리더에 읽힐 한 줄 — 눈으로 보는 것과 같은 값을 말한다 */
+function profileLabel(
+  profile: { streak?: number; level?: number; exp?: number } | null,
+  wroteToday: boolean,
+): string {
+  const streak = profile?.streak ?? 0
+  const level = profile?.level ?? 1
+  const left = Math.max(0, expToNext(level) - (profile?.exp ?? 0))
+  return [
+    "내 기록",
+    `연속 ${streak}일`,
+    ...(wroteToday ? [] : ["오늘 아직 안 씀"]),
+    `레벨 ${level}`,
+    `다음 레벨까지 ${left} EXP`,
+  ].join(", ")
 }
 
 function SideBlock({ label, children }: { label: string; children: ReactNode }) {
