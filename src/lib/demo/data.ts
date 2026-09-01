@@ -810,6 +810,25 @@ let cached: {
   saved: SavedItem[]
 } | null = null
 
+/**
+ * 씨앗 데이터에 복습 이력을 입힌다.
+ *
+ * 규칙 없이 무작위로 흩뿌리면 새로고침마다 화면이 달라져서 데모가 설명하기
+ * 어려워진다. 날짜와 순번만 보고 정해서 언제 열어도 같은 그림이 나오게 한다.
+ */
+function seededBox(daysAgo: number, index: number): number {
+  if (daysAgo <= 2) return 0 // 최근 것은 아직 한 번도 안 봤다
+  if (daysAgo >= 40) return (index % 2) + 5 // 오래된 것 중 절반은 졸업
+  return ((daysAgo + index) % 4) + 1
+}
+
+function seededDue(now: number, daysAgo: number, box: number): number {
+  if (box >= 6) return now + 90 * 86_400_000 // 졸업 — 한참 뒤
+  // 오래된 것일수록 만기가 지나 있다. 오늘 밀린 게 몇 개는 있어야 한다.
+  const offset = ((daysAgo % 7) - 3) * 86_400_000
+  return now + offset
+}
+
 export function demoData() {
   if (cached) return cached
 
@@ -843,6 +862,11 @@ export function demoData() {
     })
 
     seed.corrections.forEach((c, j) => {
+      // 복습이 이미 굴러가고 있는 것처럼 보여야 한다. 전부 상자 0에 몰려
+      // 있으면 망각곡선도, 졸업도, 밀린 개수도 화면에 드러나지 않는다.
+      // 오래된 실수일수록 여러 번 통과한 것으로 둔다.
+      const box = seededBox(seed.daysAgo, j)
+      const reviewed = box > 0
       mistakes.push({
         id: `demo-mistake-${i}-${j}`,
         entryId: id,
@@ -854,7 +878,10 @@ export function demoData() {
         explanation: c.explanation,
         ...(c.tip ? { tip: c.tip } : {}),
         createdAt,
-        reviewCount: 0,
+        reviewCount: box,
+        ...(reviewed ? { lastReviewedAt: createdAt + 86_400_000 } : {}),
+        box,
+        dueAt: seededDue(now, seed.daysAgo, box),
       })
     })
   })

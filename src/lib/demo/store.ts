@@ -139,12 +139,10 @@ export const demoStore = {
     }
   },
 
-  markReviewed(id: string, correct: boolean) {
+  recordReview(id: string, patch: Partial<Mistake>) {
     const m = store().mistakes.find((x) => x.id === id)
     if (!m) return
-    m.reviewCount += 1
-    m.lastReviewedAt = Date.now()
-    m.lastReviewCorrect = correct
+    Object.assign(m, patch)
   },
 
   addSaved(item: Omit<SavedItem, "id" | "createdAt">): string {

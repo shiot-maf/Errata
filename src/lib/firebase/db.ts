@@ -17,11 +17,13 @@ import { db } from "./client"
 import type { Entry, Feedback, Mistake, RawFeedback, UserProfile } from "../types"
 import type { Severity } from "../taxonomy"
 import { nextStreak, toDateKey } from "../dates"
+import { nextSchedule, type Grade, type Scheduled } from "../review/schedule"
 import { demoStore, isDemo } from "../demo/store"
 import {
   applyExp,
   applyQuests,
   defaultQuests,
+  mergeQuests,
   notify,
   resetQuests,
   type Quest,
@@ -95,7 +97,8 @@ function withGameDefaults(data: UserProfile): UserProfile {
     level: data.level ?? 1,
     exp: data.exp ?? 0,
     titles: data.titles ?? [],
-    quests: data.quests?.length ? data.quests : defaultQuests(),
+    // 나중에 추가된 퀘스트가 기존 사용자에게도 보이도록 합친다
+    quests: mergeQuests(data.quests),
   }
 }
 
@@ -265,6 +268,9 @@ function toMistake(snap: QueryDocumentSnapshot): Mistake {
     reviewCount: d.reviewCount ?? 0,
     lastReviewedAt: d.lastReviewedAt,
     lastReviewCorrect: d.lastReviewCorrect,
+    box: d.box ?? 0,
+    // 이 기능 전에 쌓인 실수는 만기가 없다. 0이면 지금 만기로 읽힌다.
+    dueAt: d.dueAt ?? 0,
   }
 }
 
@@ -275,18 +281,30 @@ export async function listMistakes(uid: string, max = 1000): Promise<Mistake[]> 
   return snap.docs.map(toMistake)
 }
 
-export async function markReviewed(
+/**
+ * 복습 결과를 남긴다.
+ *
+ * 맞았는지만이 아니라 "다음에 언제 다시 물을지"까지 여기서 정해 붙인다.
+ * 일정이 문서에 붙어 있어야 다음에 열었을 때 밀린 것을 셀 수 있다.
+ */
+export async function recordReview(
   uid: string,
-  mistakeId: string,
-  correct: boolean,
-  currentCount: number,
-): Promise<void> {
-  if (isDemo()) return demoStore.markReviewed(mistakeId, correct)
-  await updateDoc(doc(mistakesRef(uid), mistakeId), {
-    reviewCount: currentCount + 1,
+  mistake: Mistake,
+  grade: Grade,
+): Promise<Scheduled> {
+  const next = nextSchedule(mistake.box ?? 0, grade)
+  const patch = {
+    reviewCount: (mistake.reviewCount ?? 0) + 1,
     lastReviewedAt: Date.now(),
-    lastReviewCorrect: correct,
-  })
+    lastReviewCorrect: grade !== "wrong",
+    box: next.box,
+    dueAt: next.dueAt,
+  }
+
+  if (isDemo()) demoStore.recordReview(mistake.id, patch)
+  else await updateDoc(doc(mistakesRef(uid), mistake.id), patch)
+
+  return next
 }
 
 export { toDateKey }
@@ -349,6 +367,8 @@ export async function removeSaved(uid: string, id: string): Promise<void> {
 export interface GameAward {
   exp?: number
   quests?: QuestBump[]
+  /** 레벨 마일스톤이 아니라 실력으로 얻는 칭호 (개념 졸업 등) */
+  titles?: string[]
 }
 
 /**
@@ -369,10 +389,12 @@ export async function award(uid: string, gain: GameAward): Promise<void> {
     gain.exp ?? 0,
   )
 
+  // 레벨에서 딴 칭호와 실력으로 딴 칭호를 합친다
+  const earnedTitles = (gain.titles ?? []).filter((t) => !level.titles.includes(t))
   const next = {
     level: level.level,
     exp: level.exp,
-    titles: level.titles,
+    titles: [...level.titles, ...earnedTitles],
     quests,
   }
 
@@ -385,7 +407,7 @@ export async function award(uid: string, gain: GameAward): Promise<void> {
   if (level.leveledUp) {
     notify({ kind: "levelup", title: `레벨 ${level.level} 달성`, detail: "계속 쓰고 있어요" })
   }
-  for (const title of level.earnedTitles) {
+  for (const title of [...level.earnedTitles, ...earnedTitles]) {
     notify({ kind: "title", title: "새 칭호", detail: title })
   }
 }
