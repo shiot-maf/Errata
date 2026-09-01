@@ -12,11 +12,13 @@ import {
   MODELS,
   clearApiKey,
   getModel,
+  getWorkspaceId,
   hasApiKey,
   isKeyRemembered,
   rememberKeyOnThisDevice,
   setApiKey,
   setModel,
+  setWorkspaceId,
 } from "@/lib/ai/client"
 import { useBrowserValue } from "@/lib/browserStore"
 import { listEntries, listMistakes, listSaved, setWeeklyGoal } from "@/lib/firebase/db"
@@ -24,11 +26,14 @@ import { buildBackup, buildMarkdown, downloadFile } from "@/lib/export"
 import { signOutUser } from "@/lib/firebase/auth"
 import { toDateKey } from "@/lib/dates"
 
+const readWorkspace = () => getWorkspaceId() ?? ""
+
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth()
   const { index: sizeIndex, set: setSize } = useTextSize()
 
   const [keyValue, setKeyValue] = useState("")
+  const [workspaceValue, setWorkspaceValue] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [exporting, setExporting] = useState<null | "json" | "md">(null)
   const [error, setError] = useState<string | null>(null)
@@ -38,12 +43,22 @@ export default function SettingsPage() {
   const hasKey = useBrowserValue(hasApiKey, false)
   const remember = useBrowserValue(isKeyRemembered, false)
   const model = useBrowserValue(getModel, DEFAULT_MODEL)
+  // 원시값만 다루는 통로라서 null 대신 빈 문자열로 읽는다
+  const savedWorkspace = useBrowserValue(readWorkspace, "")
+  // 아직 아무것도 치지 않았으면 저장된 값을 그대로 보여준다
+  const workspace = workspaceValue ?? savedWorkspace
 
   const saveKey = () => {
     if (!keyValue.trim()) return
     setApiKey(keyValue, remember)
     setKeyValue("")
     setStatus("API 키를 저장했어요.")
+  }
+
+  const saveWorkspace = () => {
+    setWorkspaceId(workspace)
+    setWorkspaceValue(null)
+    setStatus(workspace.trim() ? "워크스페이스 ID를 저장했어요." : "워크스페이스 ID를 지웠어요.")
   }
 
   const dropKey = () => {
@@ -145,6 +160,51 @@ export default function SettingsPage() {
             </Pill>
           )}
         </div>
+
+        {/*
+          계정에 매인 키(identity-linked)는 여러 워크스페이스에 걸쳐 있어서,
+          이번 요청을 어느 워크스페이스 몫으로 칠지 함께 보내야 한다. 안 보내면
+          400과 함께 "anthropic-workspace-id is required"가 돌아온다. 워크스페이스
+          키를 쓰는 사람에게는 필요 없는 칸이라 접어둔다.
+        */}
+        <details className="border-t border-rule-2 pt-4" open={!!savedWorkspace}>
+          <summary className="cursor-pointer text-sm text-ink-2">
+            워크스페이스 ID{" "}
+            <span className="text-ink-3">
+              — “anthropic-workspace-id is required” 오류가 났다면
+            </span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            <p className="max-w-prose text-sm text-ink-3">
+              계정에 매인 키는 어느 워크스페이스로 쓸지 함께 알려줘야 합니다.
+              콘솔의{" "}
+              <a
+                href="https://console.anthropic.com/settings/workspaces"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                Workspaces
+              </a>
+              에서 쓰려는 워크스페이스를 열면 주소에 <code>wrkspc_…</code>가 있어요.
+              워크스페이스에 매인 키를 쓴다면 비워두세요.
+            </p>
+            <input
+              type="text"
+              value={workspace}
+              onChange={(e) => setWorkspaceValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveWorkspace()}
+              aria-label="Anthropic 워크스페이스 ID"
+              placeholder="wrkspc_…"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
+            />
+            <Pill variant="outline" onClick={saveWorkspace}>
+              {workspace.trim() ? "저장" : "지우기"}
+            </Pill>
+          </div>
+        </details>
       </Section>
 
       <Section

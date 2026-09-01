@@ -83,6 +83,8 @@ export default function WritePage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [needsKey, setNeedsKey] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 설정에서 고쳐야 하는 오류인지 — 그때만 갈 길을 같이 보여준다
+  const [errorInSettings, setErrorInSettings] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -118,6 +120,7 @@ export default function WritePage() {
 
     setAnalyzing(true)
     setError(null)
+    setErrorInSettings(false)
     setNeedsKey(false)
     const controller = new AbortController()
     abortRef.current = controller
@@ -160,7 +163,10 @@ export default function WritePage() {
       if ((e as Error).name === "AbortError") return
       if (e instanceof FeedbackError) {
         if (e.kind === "no_key") setNeedsKey(true)
-        else setError(e.message)
+        else {
+          setError(e.message)
+          setErrorInSettings(e.kind === "workspace")
+        }
       } else {
         console.error(e)
         setError("첨삭 중 문제가 생겼어요. 일기는 저장돼 있으니 다시 시도해보세요.")
@@ -301,7 +307,19 @@ export default function WritePage() {
 
       <div className="mt-6 space-y-4">
         {needsKey && <ApiKeyPrompt onSaved={() => void analyze()} />}
-        {error && <ErrorNote>{error}</ErrorNote>}
+        {error && (
+          <ErrorNote>
+            {error}
+            {errorInSettings && (
+              <>
+                {" "}
+                <Link href="/settings" className="underline underline-offset-4">
+                  설정 열기
+                </Link>
+              </>
+            )}
+          </ErrorNote>
+        )}
         {analyzing && <Loading label="첨삭하는 중… 20초쯤 걸려요" />}
       </div>
 

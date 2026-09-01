@@ -38,6 +38,7 @@ export const MODELS = [
 const KEY_STORAGE = STORAGE_KEYS.apiKey
 const MODEL_STORAGE = STORAGE_KEYS.model
 const REMEMBER_STORAGE = STORAGE_KEYS.rememberKey
+const WORKSPACE_STORAGE = STORAGE_KEYS.workspaceId
 
 // ── 키 보관 ───────────────────────────────────────────────────────
 // 기본값은 sessionStorage(탭 닫으면 사라짐). 사용자가 "이 기기에서 기억"을
@@ -107,6 +108,31 @@ export function isKeyRemembered(): boolean {
   return window.localStorage.getItem(REMEMBER_STORAGE) === "1"
 }
 
+// ── 워크스페이스 ──────────────────────────────────────────────────
+/*
+ * 콘솔에서 발급하는 키에는 두 종류가 있다.
+ *
+ * 워크스페이스에 매인 키는 어디로 청구할지가 키 자체에 적혀 있어서 그냥
+ * 쓰면 된다. 반면 사람 계정에 매인 키(identity-linked)는 여러 워크스페이스에
+ * 걸쳐 있어서, 이번 요청이 어느 워크스페이스의 몫인지 헤더로 알려줘야 한다.
+ * 안 보내면 400과 함께 "anthropic-workspace-id is required"가 돌아온다.
+ *
+ * 값은 비밀이 아니다 — 키가 없으면 아무것도 못 한다. 그래서 기기에 그냥 둔다.
+ */
+
+export function getWorkspaceId(): string | null {
+  if (typeof window === "undefined") return null
+  return window.localStorage.getItem(WORKSPACE_STORAGE)?.trim() || null
+}
+
+export function setWorkspaceId(id: string): void {
+  if (typeof window === "undefined") return
+  const value = id.trim()
+  if (value) window.localStorage.setItem(WORKSPACE_STORAGE, value)
+  else window.localStorage.removeItem(WORKSPACE_STORAGE)
+  notifyStoredValueChanged()
+}
+
 export function getModel(): string {
   if (typeof window === "undefined") return DEFAULT_MODEL
   const stored = window.localStorage.getItem(MODEL_STORAGE)
@@ -126,7 +152,14 @@ export function setModel(model: string): void {
 export class FeedbackError extends Error {
   constructor(
     message: string,
-    readonly kind: "no_key" | "auth" | "rate_limit" | "network" | "malformed" | "server",
+    readonly kind:
+      | "no_key"
+      | "auth"
+      | "workspace"
+      | "rate_limit"
+      | "network"
+      | "malformed"
+      | "server",
   ) {
     super(message)
     this.name = "FeedbackError"
@@ -157,6 +190,7 @@ export async function requestFeedback(args: {
   }
 
   const model = getModel()
+  const workspaceId = getWorkspaceId()
 
   let res: Response
   try {
@@ -169,6 +203,9 @@ export async function requestFeedback(args: {
         "anthropic-version": "2023-06-01",
         // 브라우저에서 직접 호출하려면 이 헤더가 필요하다.
         "anthropic-dangerous-direct-browser-access": "true",
+        // 사람 계정에 매인 키만 이게 필요하다. 워크스페이스 키에 붙이면
+        // 거절당할 수 있으므로 사용자가 넣어둔 경우에만 보낸다.
+        ...(workspaceId ? { "anthropic-workspace-id": workspaceId } : {}),
       },
       body: JSON.stringify({
         model,
@@ -192,6 +229,17 @@ export async function requestFeedback(args: {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "")
+    // 키는 멀쩡한데 워크스페이스를 안 정한 경우. 400 본문에만 적혀 오므로
+    // 여기서 가려내지 않으면 "Anthropic API 오류 (400)"이라는, 무엇을 해야
+    // 하는지 알 수 없는 말만 남는다.
+    if (body.includes("anthropic-workspace-id")) {
+      throw new FeedbackError(
+        workspaceId
+          ? `워크스페이스 ID(${workspaceId})를 이 키로는 쓸 수 없어요. 설정에서 다시 확인해주세요.`
+          : "이 키는 계정에 매인 키라서 어느 워크스페이스로 쓸지 함께 알려줘야 해요. 설정 → Anthropic API 키에서 워크스페이스 ID를 넣어주세요.",
+        "workspace",
+      )
+    }
     if (res.status === 401 || res.status === 403) {
       throw new FeedbackError("API 키가 올바르지 않거나 권한이 없어요.", "auth")
     }
