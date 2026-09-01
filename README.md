@@ -209,6 +209,25 @@ Haiku 4.5로 바꿀 수 있습니다. 첨삭은 하루 한 번 200단어 남짓�
 3. 저장 전에 카테고리가 택소노미 안에 있는지 다시 검증합니다 (`src/lib/ai/client.ts`)
 4. 일기 문서에 첨삭을, `mistakes`에 실수를 흩뿌립니다 (`src/lib/firebase/db.ts`)
 
+### 계정
+
+이메일·비밀번호로 이 사이트에 직접 가입하거나, 구글 계정으로 들어옵니다.
+둘 다 Firebase Auth를 쓰고 프로필 문서는 uid 하나로 같습니다.
+
+이메일 가입에는 순서 문제가 하나 있습니다. 계정이 만들어지는 순간
+`onAuthStateChanged`가 울리고 `AuthProvider`가 프로필 문서를 만드는데, 그
+시점의 `displayName`은 아직 비어 있습니다 — 이름은 계정이 생긴 뒤에야 붙일
+수 있기 때문입니다. 경합을 이기려 하지 않고, `signUpWithEmail`이 이름을 붙인
+뒤 문서를 확인하고 이름만 한 번 덮습니다(`setProfileName`).
+
+확인 메일은 보내되 막지 않습니다. 첫 일기를 쓰러 온 사람을 메일함으로
+돌려보내면 대부분 돌아오지 않습니다. 비밀번호 재설정 메일은 로그인 탭의
+"비밀번호를 잊었어요"에서 보냅니다.
+
+Firebase의 오류 코드는 `authErrorMessage()`가 한국어로 옮깁니다 —
+`auth/invalid-credential`이 화면에 그대로 뜨면 사용자는 무엇을 해야 할지
+알 수 없습니다.
+
 ### API 키 취급
 
 키는 **브라우저를 벗어나지 않습니다.** 기본은 `sessionStorage`(탭을 닫으면 삭제),
@@ -339,10 +358,11 @@ npm run build                                 # 루트 도메인
 ### Firebase 쪽에서 한 번만 해둘 것
 
 프로젝트는 `diaryecho`입니다. 콘솔에서 세 가지가 필요하고, 전부 브라우저에서
-할 수 있습니다. 이 셋을 하기 전까지 구글 로그인은 실패합니다. 데모 모드(`?demo=1`)는
+할 수 있습니다. 이 셋을 하기 전까지 로그인·가입은 실패합니다. 데모 모드(`?demo=1`)는
 Firebase를 전혀 건드리지 않으므로 그와 무관하게 동작합니다.
 
-1. **Authentication → Sign-in method → Google** 사용 설정
+1. **Authentication → Sign-in method**에서 **이메일/비밀번호**와 **Google** 사용 설정
+   (이메일 쪽을 켜지 않으면 가입할 때 "이메일 가입이 아직 켜져 있지 않아요"가 뜹니다)
 2. **Authentication → Settings → 승인된 도메인**에 배포 도메인 추가
    (`shiot-maf.github.io`, 그리고 Vercel로 옮기면 그 도메인도)
 3. **Firestore Database → 규칙** 탭에 `firestore.rules` 내용을 붙여넣고 게시

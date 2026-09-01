@@ -81,6 +81,18 @@ export async function ensureProfile(user: {
   return profile
 }
 
+/**
+ * 이름만 고쳐 넣는다.
+ *
+ * 이메일로 가입할 때 필요하다. 계정이 만들어지는 순간 onAuthStateChanged가
+ * 먼저 울려서 ensureProfile이 이름 없는 문서를 만들어버릴 수 있는데, 그
+ * 경합을 이기려 애쓰는 것보다 나중에 한 번 덮는 쪽이 확실하다.
+ */
+export async function setProfileName(uid: string, name: string): Promise<void> {
+  if (isDemo()) return
+  await updateDoc(userRef(uid), { displayName: name })
+}
+
 export async function getProfile(uid: string): Promise<UserProfile | null> {
   if (isDemo()) return demoStore.profile()
   const snap = await getDoc(userRef(uid))
