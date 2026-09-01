@@ -4,6 +4,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /*
+     * 핸들 — 겹치지 않는 이름을 잡아두는 자리.
+     *
+     * Firestore에는 "이 필드는 유일해야 한다"는 제약이 없다. 그래서 이름
+     * 자체를 문서 id로 쓰는 컬렉션을 두고, 먼저 만든 사람이 갖는다.
+     * 트랜잭션 안에서 없는 것을 확인하고 만들기 때문에 둘이 동시에
+     * 같은 이름을 잡을 수 없다.
+     */
+    match /handles/{handle} {
+      // 가입 화면에서 "쓸 수 있는 이름인가"를 물으려면 로그인 전에도 읽혀야 한다.
+      // 담긴 것은 uid 하나뿐이고, 그건 이 이름이 누구를 가리키는지 그 자체다.
+      allow get: if true;
+      // 전체를 훑어가지는 못하게 한다 — 사용자 목록이 되어버린다.
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && handle.size() >= 3
+        && handle.size() <= 20
+        && handle.matches('^[a-z][a-z0-9_]*$');
+
+      // 이름을 바꾸는 건 지우고 다시 잡는 것이다. 남의 것은 건드릴 수 없다.
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
     match /diaryUsers/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
 

@@ -98,6 +98,11 @@ export interface RawCorrection {
 export interface UserProfile {
   uid: string
   displayName: string | null
+  /**
+   * 이 사이트에서 나를 가리키는 하나뿐인 이름 (@ 없이 저장한다).
+   * 아직 안 정한 사람이 있으므로 없을 수 있다.
+   */
+  handle?: string | null
   email: string | null
   photoURL: string | null
   createdAt: number

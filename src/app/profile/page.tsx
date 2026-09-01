@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { PageHeader } from "@/components/AppShell"
 import { Loading } from "@/components/ui"
 import { ProfileSheet, type ProfileSummary } from "@/components/ProfileSheet"
+import { HandleEditor } from "@/components/HandleEditor"
 import { listEntries, listMistakes, listSaved } from "@/lib/firebase/db"
 import { dailyActivity } from "@/lib/analysis/aggregate"
 import { EXPRESSION_SLUG, collectReviewItems } from "@/lib/review/item"
@@ -43,7 +44,7 @@ const ACTIVITY_DAYS = 365
 const PROGRESS_ROWS = 10
 
 export default function ProfilePage() {
-  const { user, profile, demo } = useAuth()
+  const { user, profile, demo, refreshProfile } = useAuth()
   const [data, setData] = useState<Loaded | null>(null)
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function ProfilePage() {
 
     return {
       displayName: profile?.displayName ?? user.displayName,
+      handle: profile?.handle ?? null,
       photoURL: profile?.photoURL ?? user.photoURL,
       since: profile?.createdAt ?? data.now,
       streak: profile?.streak ?? 0,
@@ -110,7 +112,16 @@ export default function ProfilePage() {
         meta={demo ? "데모" : undefined}
         description="쓴 것과 뗀 것을 한 장에 모았어요."
       />
-      <ProfileSheet summary={summary} />
+      <ProfileSheet
+        summary={summary}
+        handleAction={
+          <HandleEditor
+            uid={user.uid}
+            current={profile?.handle ?? null}
+            onDone={refreshProfile}
+          />
+        }
+      />
 
       {/*
         설정은 이 화면 안에 산다 — 탭 한 자리를 차지하기엔 다시 열 일이

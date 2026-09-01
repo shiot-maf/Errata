@@ -12,6 +12,7 @@ import {
 } from "firebase/auth"
 import { auth } from "./client"
 import { ensureProfile, setProfileName } from "./db"
+import { claimHandle } from "./handles"
 
 const provider = new GoogleAuthProvider()
 
@@ -36,6 +37,7 @@ export async function signUpWithEmail(
   name: string,
   email: string,
   password: string,
+  handle?: string,
 ): Promise<User> {
   const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password)
   const displayName = name.trim()
@@ -48,6 +50,16 @@ export async function signUpWithEmail(
     photoURL: null,
   })
   await setProfileName(user.uid, displayName)
+
+  /*
+   * 핸들은 잡아보되 실패해도 가입을 되돌리지 않는다. 아직 비어 있는지
+   * 가입 화면에서 미리 확인하지만, 그 사이에 누가 채갈 수 있다. 그때는
+   * 계정만 만들어지고 프로필 화면이 "핸들을 정하세요"를 띄운다 —
+   * 이미 만들어진 계정을 지우는 것보다 그쪽이 낫다.
+   */
+  if (handle) {
+    await claimHandle(user.uid, handle).catch(() => {})
+  }
 
   // 확인 메일은 보내되 막지는 않는다. 첫 일기를 쓰러 온 사람을 메일함으로
   // 돌려보내면 대부분 돌아오지 않는다.
