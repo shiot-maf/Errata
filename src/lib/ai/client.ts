@@ -6,6 +6,14 @@ import type { Mistake, RawFeedback } from "../types"
 import { CATEGORY_SLUGS, SEVERITIES, type Severity } from "../taxonomy"
 import { demoFeedback, isDemo } from "../demo/store"
 import { STORAGE_KEYS } from "../storageKeys"
+import {
+  getCompatBaseUrl,
+  getCompatModel,
+  getProvider,
+  presetFor,
+  trimSlash,
+  type ProviderId,
+} from "./provider"
 import { notifyStoredValueChanged } from "../browserStore"
 
 /**
@@ -45,9 +53,13 @@ const WORKSPACE_STORAGE = STORAGE_KEYS.workspaceId
 // 켜면 localStorage로 옮긴다. 본인 기기에서의 편의와 안전 사이 선택은
 // 사용자가 하게 둔다.
 
+/** 제공자마다 키가 다르다 — 오가며 쓰다가 서로 지우지 않게 따로 둔다 */
+const keyStorageFor = (provider: ProviderId) =>
+  provider === "compat" ? STORAGE_KEYS.compatKey : KEY_STORAGE
+
 /** 키가 들어 있는지만 알려준다 — 화면은 값 자체를 다시 보여줄 일이 없다. */
-export function hasApiKey(): boolean {
-  return getApiKey() !== null
+export function hasApiKey(provider: ProviderId = getProvider()): boolean {
+  return getApiKey(provider) !== null
 }
 
 /**
@@ -61,28 +73,34 @@ export function needsApiKey(): boolean {
   return !isDemo() && !hasApiKey()
 }
 
-export function getApiKey(): string | null {
+export function getApiKey(provider: ProviderId = getProvider()): string | null {
   if (typeof window === "undefined") return null
+  const storage = keyStorageFor(provider)
   return (
-    window.sessionStorage.getItem(KEY_STORAGE) ??
-    window.localStorage.getItem(KEY_STORAGE)
+    window.sessionStorage.getItem(storage) ?? window.localStorage.getItem(storage)
   )
 }
 
-export function setApiKey(key: string, remember: boolean): void {
+export function setApiKey(
+  key: string,
+  remember: boolean,
+  provider: ProviderId = getProvider(),
+): void {
   if (typeof window === "undefined") return
-  window.sessionStorage.removeItem(KEY_STORAGE)
-  window.localStorage.removeItem(KEY_STORAGE)
+  const storage = keyStorageFor(provider)
+  window.sessionStorage.removeItem(storage)
+  window.localStorage.removeItem(storage)
   const store = remember ? window.localStorage : window.sessionStorage
-  store.setItem(KEY_STORAGE, key.trim())
+  store.setItem(storage, key.trim())
   window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
   notifyStoredValueChanged()
 }
 
-export function clearApiKey(): void {
+export function clearApiKey(provider: ProviderId = getProvider()): void {
   if (typeof window === "undefined") return
-  window.sessionStorage.removeItem(KEY_STORAGE)
-  window.localStorage.removeItem(KEY_STORAGE)
+  const storage = keyStorageFor(provider)
+  window.sessionStorage.removeItem(storage)
+  window.localStorage.removeItem(storage)
   notifyStoredValueChanged()
 }
 
@@ -94,11 +112,16 @@ export function clearApiKey(): void {
  */
 export function rememberKeyOnThisDevice(remember: boolean): void {
   if (typeof window === "undefined") return
-  const key = getApiKey()
-  if (key) {
-    setApiKey(key, remember)
-    return
+  // 넣어둔 키가 둘일 수 있다. 한쪽만 옮기면 제공자를 바꾼 순간
+  // 껐다고 생각한 키가 기기에 남아 있게 된다.
+  let moved = false
+  for (const provider of ["anthropic", "compat"] as const) {
+    const key = getApiKey(provider)
+    if (!key) continue
+    setApiKey(key, remember, provider)
+    moved = true
   }
+  if (moved) return
   window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
   notifyStoredValueChanged()
 }
@@ -156,6 +179,8 @@ export class FeedbackError extends Error {
       | "no_key"
       | "auth"
       | "workspace"
+      | "billing"
+      | "config"
       | "rate_limit"
       | "network"
       | "malformed"
@@ -172,29 +197,50 @@ interface AnthropicContentBlock {
   input?: unknown
 }
 
-export async function requestFeedback(args: {
+export interface FeedbackRequest {
   text: string
   dateKey: string
   recentMistakes: Mistake[]
   signal?: AbortSignal
-}): Promise<{ feedback: RawFeedback; model: string }> {
+}
+
+export async function requestFeedback(
+  args: FeedbackRequest,
+): Promise<{ feedback: RawFeedback; model: string }> {
   if (isDemo()) {
     // 첨삭이 도는 느낌은 살리되 실제 요청은 보내지 않는다.
     await new Promise((r) => setTimeout(r, 900))
     return { feedback: demoFeedback(args.text), model: "demo" }
   }
 
-  const apiKey = getApiKey()
+  const provider = getProvider()
+  const apiKey = getApiKey(provider)
   if (!apiKey) {
-    throw new FeedbackError("Anthropic API 키가 설정되지 않았어요.", "no_key")
+    throw new FeedbackError(
+      provider === "compat"
+        ? "제공자 API 키가 설정되지 않았어요."
+        : "Anthropic API 키가 설정되지 않았어요.",
+      "no_key",
+    )
   }
 
+  return provider === "compat"
+    ? callCompat(args, apiKey)
+    : callAnthropic(args, apiKey)
+}
+
+// ── Anthropic ─────────────────────────────────────────────────────
+
+async function callAnthropic(
+  args: FeedbackRequest,
+  apiKey: string,
+): Promise<{ feedback: RawFeedback; model: string }> {
   const model = getModel()
   const workspaceId = getWorkspaceId()
 
-  let res: Response
-  try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await send(
+    "https://api.anthropic.com/v1/messages",
+    {
       method: "POST",
       signal: args.signal,
       headers: {
@@ -218,39 +264,11 @@ export async function requestFeedback(args: {
         tools: [FEEDBACK_TOOL],
         tool_choice: { type: "tool", name: FEEDBACK_TOOL.name },
       }),
-    })
-  } catch (e) {
-    if ((e as Error).name === "AbortError") throw e
-    throw new FeedbackError(
-      "Anthropic API에 연결하지 못했어요. 네트워크를 확인해주세요.",
-      "network",
-    )
-  }
+    },
+    "Anthropic",
+  )
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "")
-    // 키는 멀쩡한데 워크스페이스를 안 정한 경우. 400 본문에만 적혀 오므로
-    // 여기서 가려내지 않으면 "Anthropic API 오류 (400)"이라는, 무엇을 해야
-    // 하는지 알 수 없는 말만 남는다.
-    if (body.includes("anthropic-workspace-id")) {
-      throw new FeedbackError(
-        workspaceId
-          ? `워크스페이스 ID(${workspaceId})를 이 키로는 쓸 수 없어요. 설정에서 다시 확인해주세요.`
-          : "이 키는 계정에 매인 키라서 어느 워크스페이스로 쓸지 함께 알려줘야 해요. 설정 → Anthropic API 키에서 워크스페이스 ID를 넣어주세요.",
-        "workspace",
-      )
-    }
-    if (res.status === 401 || res.status === 403) {
-      throw new FeedbackError("API 키가 올바르지 않거나 권한이 없어요.", "auth")
-    }
-    if (res.status === 429) {
-      throw new FeedbackError("요청이 너무 잦아요. 잠시 후 다시 시도해주세요.", "rate_limit")
-    }
-    throw new FeedbackError(
-      `Anthropic API 오류 (${res.status}). ${body.slice(0, 200)}`,
-      "server",
-    )
-  }
+  if (!res.ok) throw await httpError(res, "Anthropic", workspaceId)
 
   const data = (await res.json()) as {
     content?: AnthropicContentBlock[]
@@ -259,18 +277,230 @@ export async function requestFeedback(args: {
   const block = data.content?.find(
     (c) => c.type === "tool_use" && c.name === FEEDBACK_TOOL.name,
   )
-  if (!block?.input) {
-    // 한도에 걸려 잘린 것이면 다시 눌러도 같은 자리에서 잘린다.
-    // 무엇을 해야 하는지 말해주는 편이 낫다.
-    throw new FeedbackError(
-      data.stop_reason === "max_tokens"
-        ? "일기가 길어서 첨삭이 중간에 잘렸어요. 조금 나눠서 써보세요."
-        : "첨삭 결과를 읽지 못했어요. 다시 시도해주세요.",
-      "malformed",
-    )
-  }
+  if (!block?.input) throw noResult(data.stop_reason === "max_tokens")
 
   return { feedback: normalize(block.input, args.text), model }
+}
+
+// ── OpenAI 호환 ───────────────────────────────────────────────────
+/*
+ * Gemini(AI Studio)·Groq·OpenRouter·Cerebras·Ollama가 모두 이 모양이다.
+ * 스키마는 Anthropic 쪽과 같은 것을 쓴다 — tool 정의의 input_schema가
+ * 그대로 function.parameters로 들어간다.
+ */
+
+async function callCompat(
+  args: FeedbackRequest,
+  apiKey: string,
+): Promise<{ feedback: RawFeedback; model: string }> {
+  const baseUrl = trimSlash(getCompatBaseUrl())
+  const model = getCompatModel()
+  if (!baseUrl || !model) {
+    // 키는 있는데 어디로 보낼지가 없다. 키 입력창을 다시 띄우면 엉뚱한
+    // 곳을 고치게 되므로 설정으로 보낸다.
+    throw new FeedbackError("제공자 주소와 모델을 먼저 설정해주세요.", "config")
+  }
+
+  const res = await send(
+    `${baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      signal: args.signal,
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 16000,
+        messages: [
+          { role: "system", content: buildSystemPrompt(args.recentMistakes) },
+          { role: "user", content: buildUserMessage(args.text, args.dateKey) },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: FEEDBACK_TOOL.name,
+              description: FEEDBACK_TOOL.description,
+              parameters: FEEDBACK_TOOL.input_schema,
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: FEEDBACK_TOOL.name } },
+      }),
+    },
+    who(baseUrl),
+  )
+
+  if (!res.ok) throw await httpError(res, who(baseUrl), null)
+
+  const data = (await res.json()) as {
+    choices?: {
+      finish_reason?: string
+      message?: {
+        content?: string | null
+        tool_calls?: { function?: { name?: string; arguments?: unknown } }[]
+      }
+    }[]
+  }
+  const choice = data.choices?.[0]
+  const call = choice?.message?.tool_calls?.[0]
+
+  /*
+   * 제대로 된 응답은 tool_calls로 온다. 그런데 작은 모델은 도구를 부르지
+   * 않고 본문에 JSON을 그냥 적어놓기도 한다. 그것까지는 받아준다 —
+   * 스키마를 지켰다면 형식이 어디에 실려 왔는지는 중요하지 않다.
+   */
+  const raw = call?.function?.arguments ?? choice?.message?.content
+  const input = parseArguments(raw)
+  if (!input) throw noResult(choice?.finish_reason === "length")
+
+  return { feedback: normalize(input, args.text), model }
+}
+
+/** 오류 문구에 쓸 제공자 이름 — 아는 곳이면 이름으로, 아니면 주소로 */
+function who(baseUrl: string): string {
+  const preset = presetFor(baseUrl)
+  if (preset) return preset.label
+  try {
+    return new URL(baseUrl).host
+  } catch {
+    return "제공자"
+  }
+}
+
+/**
+ * 제공자에게 모델 목록을 물어본다.
+ *
+ * 모델 이름은 자주 바뀌어서 앱이 목록을 들고 있으면 금방 거짓말이 된다.
+ * OpenAI 호환 제공자는 대부분 /models를 그대로 열어두므로 직접 물어본다.
+ */
+export async function listCompatModels(
+  baseUrl: string,
+  apiKey: string,
+): Promise<string[]> {
+  const url = `${trimSlash(baseUrl)}/models`
+  const res = await send(url, { headers: { authorization: `Bearer ${apiKey}` } }, "제공자")
+  if (!res.ok) throw await httpError(res, "제공자", null)
+
+  const data = (await res.json()) as { data?: { id?: unknown }[] }
+  return (data.data ?? [])
+    .map((m) => (typeof m.id === "string" ? m.id : ""))
+    .filter(Boolean)
+    .sort()
+}
+
+/** tool 인자는 보통 JSON 문자열이지만, 객체로 그냥 주는 제공자도 있다 */
+function parseArguments(raw: unknown): unknown | null {
+  if (raw && typeof raw === "object") return raw
+  if (typeof raw !== "string") return null
+
+  const text = raw.trim()
+  const start = text.indexOf("{")
+  const finish = text.lastIndexOf("}")
+  if (start === -1 || finish <= start) return null
+  try {
+    // 앞뒤에 ```json 같은 것이 붙어 오는 경우가 있어 중괄호 안만 읽는다
+    return JSON.parse(text.slice(start, finish + 1))
+  } catch {
+    return null
+  }
+}
+
+// ── 공통 ──────────────────────────────────────────────────────────
+
+/** 네트워크 단계에서 죽은 것과 응답이 온 것을 갈라둔다 */
+async function send(url: string, init: RequestInit, who: string): Promise<Response> {
+  try {
+    return await fetch(url, init)
+  } catch (e) {
+    if ((e as Error).name === "AbortError") throw e
+    throw new FeedbackError(
+      `${who}에 연결하지 못했어요. 주소와 네트워크를 확인해주세요. (브라우저가 막은 요청일 수도 있어요.)`,
+      "network",
+    )
+  }
+}
+
+function noResult(truncated: boolean): FeedbackError {
+  // 한도에 걸려 잘린 것이면 다시 눌러도 같은 자리에서 잘린다.
+  // 무엇을 해야 하는지 말해주는 편이 낫다.
+  return new FeedbackError(
+    truncated
+      ? "일기가 길어서 첨삭이 중간에 잘렸어요. 조금 나눠서 써보세요."
+      : "첨삭 결과를 읽지 못했어요. 모델이 형식을 지키지 못했을 수 있어요 — 다시 시도하거나 다른 모델을 골라보세요.",
+    "malformed",
+  )
+}
+
+async function httpError(
+  res: Response,
+  who: string,
+  workspaceId: string | null,
+): Promise<FeedbackError> {
+  const body = await res.text().catch(() => "")
+
+  // 크레딧이 없다. 코드로 고칠 수 없는 것이므로 어디로 가야 하는지만
+  // 정확히 말해준다. 구독료와 API 크레딧은 지갑이 다르다.
+  if (body.includes("credit balance")) {
+    return new FeedbackError(
+      "이 계정의 API 크레딧이 부족해요. 콘솔에서 충전하면 바로 됩니다. (Claude 구독료와 API 크레딧은 별개예요.)",
+      "billing",
+    )
+  }
+  if (/quota|billing|insufficient/i.test(body) && res.status !== 401) {
+    return new FeedbackError(
+      `${who}가 한도·결제 문제로 거절했어요. ${apiMessage(body) ?? ""}`.trim(),
+      "billing",
+    )
+  }
+  // 키는 멀쩡한데 워크스페이스를 안 정한 경우. 400 본문에만 적혀 오므로
+  // 여기서 가려내지 않으면 "Anthropic API 오류 (400)"이라는, 무엇을 해야
+  // 하는지 알 수 없는 말만 남는다.
+  if (body.includes("anthropic-workspace-id")) {
+    return new FeedbackError(
+      workspaceId
+        ? `워크스페이스 ID(${workspaceId})를 이 키로는 쓸 수 없어요. 설정에서 다시 확인해주세요.`
+        : "이 키는 계정에 매인 키라서 어느 워크스페이스로 쓸지 함께 알려줘야 해요. 설정 → Anthropic API 키에서 워크스페이스 ID를 넣어주세요.",
+      "workspace",
+    )
+  }
+  if (res.status === 401 || res.status === 403) {
+    return new FeedbackError("API 키가 올바르지 않거나 권한이 없어요.", "auth")
+  }
+  if (res.status === 429) {
+    return new FeedbackError(
+      "요청이 너무 잦아요. 잠시 후 다시 시도해주세요. (무료 티어는 분당 요청 수가 적어요.)",
+      "rate_limit",
+    )
+  }
+  if (res.status === 404) {
+    return new FeedbackError(
+      `${who}에서 그 모델이나 주소를 찾지 못했어요. 설정의 모델 이름을 확인해주세요. ${apiMessage(body) ?? ""}`.trim(),
+      "server",
+    )
+  }
+  /*
+   * 남은 것들. 예전에는 응답 본문을 통째로 붙여서 JSON 덩어리가 그대로
+   * 화면에 나왔다. 안에 사람이 읽을 문장이 이미 들어 있으므로 그것만
+   * 꺼내 쓴다. 모양이 다르면 그때만 원문 앞부분을 보여준다.
+   */
+  return new FeedbackError(
+    `${who} 오류 (${res.status}). ${apiMessage(body) ?? body.slice(0, 200)}`,
+    "server",
+  )
+}
+
+/** 오류 본문에서 사람이 읽을 문장만 꺼낸다 */
+function apiMessage(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: unknown } }
+    const message = parsed.error?.message
+    return typeof message === "string" && message ? message : null
+  } catch {
+    return null
+  }
 }
 
 /**
