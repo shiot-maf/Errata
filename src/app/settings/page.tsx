@@ -4,13 +4,15 @@ import { useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { PageHeader } from "@/components/AppShell"
-import { ErrorNote, Pill, Section } from "@/components/ui"
+import { ErrorNote, Pill, Section, Segmented } from "@/components/ui"
 import { TextSizeControl, useTextSize } from "@/components/TextSizeControl"
 import { ThemeControl } from "@/components/ThemeControl"
 import {
   DEFAULT_MODEL,
   MODELS,
   clearApiKey,
+  listCompatModels,
+  getApiKey,
   getModel,
   getWorkspaceId,
   hasApiKey,
@@ -20,6 +22,17 @@ import {
   setModel,
   setWorkspaceId,
 } from "@/lib/ai/client"
+import {
+  COMPAT_PRESETS,
+  PROVIDER_LABEL,
+  getCompatBaseUrl,
+  getCompatModel,
+  getProvider,
+  presetFor,
+  setCompatEndpoint,
+  setProvider,
+  type ProviderId,
+} from "@/lib/ai/provider"
 import { useBrowserValue } from "@/lib/browserStore"
 import { listEntries, listMistakes, listSaved, setWeeklyGoal } from "@/lib/firebase/db"
 import { buildBackup, buildMarkdown, downloadFile } from "@/lib/export"
@@ -43,6 +56,7 @@ export default function SettingsPage() {
   const hasKey = useBrowserValue(hasApiKey, false)
   const remember = useBrowserValue(isKeyRemembered, false)
   const model = useBrowserValue(getModel, DEFAULT_MODEL)
+  const provider = useBrowserValue(getProvider, "anthropic" as ProviderId)
   // 원시값만 다루는 통로라서 null 대신 빈 문자열로 읽는다
   const savedWorkspace = useBrowserValue(readWorkspace, "")
   // 아직 아무것도 치지 않았으면 저장된 값을 그대로 보여준다
@@ -120,6 +134,35 @@ export default function SettingsPage() {
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
+      <Section
+        title="첨삭 제공자"
+        description="첨삭은 브라우저에서 제공자로 직접 갑니다. Anthropic은 크레딧을 충전해야 하고, OpenAI 호환 쪽은 무료 티어가 있는 곳이 많아요."
+      >
+        <Segmented
+          label="첨삭 제공자"
+          value={provider}
+          onChange={(next) => {
+            setProvider(next)
+            setStatus(`${PROVIDER_LABEL[next]}(으)로 바꿨어요.`)
+          }}
+          options={[
+            { value: "anthropic" as ProviderId, label: PROVIDER_LABEL.anthropic },
+            { value: "compat" as ProviderId, label: PROVIDER_LABEL.compat },
+          ]}
+        />
+        <p className="max-w-prose text-xs text-ink-3">
+          첨삭 품질은 고른 모델에 달려 있어요. 이 앱은 실수마다 26개 카테고리 중
+          하나를 붙이게 시키는데, 작은 모델은 그 분류를 자주 틀립니다 — 잘못 붙은
+          카테고리는 그대로 통계에 쌓여서 없는 약점을 만들어냅니다.
+        </p>
+      </Section>
+
+      {provider === "compat" && (
+        <CompatSection onStatus={setStatus} onError={setError} remember={remember} />
+      )}
+
+      {provider === "anthropic" && (
+        <>
       <Section
         title="Anthropic API 키"
         description="첨삭은 브라우저에서 Anthropic으로 직접 요청합니다. 키는 이 기기를 벗어나지 않고, 우리 서버에 저장되지 않습니다."
@@ -227,6 +270,8 @@ export default function SettingsPage() {
           ))}
         </select>
       </Section>
+        </>
+      )}
 
       <Section
         title="테마"
@@ -305,3 +350,207 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+/**
+ * OpenAI 호환 제공자 설정.
+ *
+ * 주소·모델·키 세 가지만 있으면 Gemini(AI Studio)·Groq·OpenRouter·Cerebras·
+ * Ollama가 전부 같은 코드로 돈다. 모델 이름은 자주 바뀌므로 앱이 들고 있지
+ * 않고, 제공자에게 직접 물어서 고르게 한다.
+ */
+function CompatSection({
+  remember,
+  onStatus,
+  onError,
+}: {
+  remember: boolean
+  onStatus: (s: string) => void
+  onError: (s: string | null) => void
+}) {
+  const savedBaseUrl = useBrowserValue(getCompatBaseUrl, "")
+  const savedModel = useBrowserValue(getCompatModel, "")
+  const hasKey = useBrowserValue(readCompatKey, false)
+
+  const [draft, setDraft] = useState<{ baseUrl: string; model: string } | null>(null)
+  const baseUrl = draft?.baseUrl ?? savedBaseUrl
+  const model = draft?.model ?? savedModel
+  const edit = (patch: Partial<{ baseUrl: string; model: string }>) =>
+    setDraft({ baseUrl, model, ...patch })
+
+  const [keyValue, setKeyValue] = useState("")
+  const [models, setModels] = useState<string[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const preset = presetFor(baseUrl)
+
+  const applyPreset = (id: string) => {
+    const found = COMPAT_PRESETS.find((p) => p.id === id)
+    if (!found) return
+    setDraft({ baseUrl: found.baseUrl, model: found.model })
+    setModels(null)
+    setCompatEndpoint(found.baseUrl, found.model)
+    onStatus(`${found.label}(으)로 맞췄어요.`)
+  }
+
+  const saveEndpoint = () => {
+    setCompatEndpoint(baseUrl, model)
+    setDraft(null)
+    onStatus("제공자 주소와 모델을 저장했어요.")
+  }
+
+  const saveKey = () => {
+    if (!keyValue.trim()) return
+    setApiKey(keyValue, remember, "compat")
+    setKeyValue("")
+    onStatus("제공자 키를 저장했어요.")
+  }
+
+  const loadModels = async () => {
+    setLoading(true)
+    onError(null)
+    try {
+      const list = await listCompatModels(baseUrl, getApiKey("compat") ?? "")
+      setModels(list)
+      onStatus(`모델 ${list.length}개를 불러왔어요.`)
+    } catch (e) {
+      setModels(null)
+      onError(
+        e instanceof Error
+          ? `모델 목록을 못 불러왔어요. ${e.message}`
+          : "모델 목록을 못 불러왔어요.",
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Section
+      title="제공자 설정"
+      description="OpenAI 호환 엔드포인트면 무엇이든 됩니다. 아래에서 고르면 주소가 채워져요."
+    >
+      <select
+        aria-label="제공자 고르기"
+        value={preset?.id ?? ""}
+        onChange={(e) => applyPreset(e.target.value)}
+        className="w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 text-sm"
+      >
+        <option value="">직접 입력</option>
+        {COMPAT_PRESETS.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.label}
+          </option>
+        ))}
+      </select>
+      {preset && (
+        <p className="max-w-prose text-xs text-ink-3">
+          {preset.note}{" "}
+          <a
+            href={preset.keyUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2 hover:text-ink"
+          >
+            키 받기 →
+          </a>
+        </p>
+      )}
+
+      <label className="block">
+        <span className="label-sm block">엔드포인트 주소</span>
+        <input
+          type="url"
+          value={baseUrl}
+          onChange={(e) => edit({ baseUrl: e.target.value })}
+          placeholder="https://…/v1"
+          autoComplete="off"
+          spellCheck={false}
+          className="mt-1.5 w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
+        />
+      </label>
+
+      <label className="block">
+        <span className="label-sm block">모델 이름</span>
+        {models ? (
+          <select
+            value={model}
+            onChange={(e) => edit({ model: e.target.value })}
+            className="mt-1.5 w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
+          >
+            {!models.includes(model) && <option value={model}>{model}</option>}
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => edit({ model: e.target.value })}
+            placeholder="gemini-2.5-flash"
+            autoComplete="off"
+            spellCheck={false}
+            className="mt-1.5 w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
+          />
+        )}
+      </label>
+
+      <div className="flex flex-wrap gap-2">
+        <Pill variant="outline" onClick={saveEndpoint} disabled={!baseUrl.trim() || !model.trim()}>
+          주소·모델 저장
+        </Pill>
+        <Pill
+          variant="quiet"
+          onClick={() => void loadModels()}
+          busy={loading}
+          disabled={!baseUrl.trim() || !hasKey}
+        >
+          모델 목록 불러오기
+        </Pill>
+      </div>
+      {!hasKey && (
+        <p className="text-xs text-ink-3">모델 목록을 물어보려면 키를 먼저 저장해주세요.</p>
+      )}
+
+      <div className="border-t border-rule-2 pt-4">
+        <p className="text-sm text-ink-2">
+          키 상태:{" "}
+          <strong className="font-medium text-ink">
+            {hasKey ? (remember ? "이 기기에 저장됨" : "이번 세션에만 저장됨") : "없음"}
+          </strong>
+        </p>
+        <input
+          type="password"
+          value={keyValue}
+          onChange={(e) => setKeyValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && saveKey()}
+          aria-label="제공자 API 키"
+          placeholder={hasKey ? "새 키로 교체하려면 입력하세요" : "제공자에서 받은 키"}
+          autoComplete="off"
+          spellCheck={false}
+          className="mt-3 w-full max-w-md rounded-xl border border-field bg-transparent px-3 py-2.5 font-mono text-sm"
+        />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Pill variant="outline" onClick={saveKey} disabled={!keyValue.trim()}>
+            키 저장
+          </Pill>
+          {hasKey && (
+            <Pill
+              variant="quiet"
+              onClick={() => {
+                clearApiKey("compat")
+                onStatus("제공자 키를 지웠어요.")
+              }}
+            >
+              키 지우기
+            </Pill>
+          )}
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+const readCompatKey = () => hasApiKey("compat")

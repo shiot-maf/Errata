@@ -18,6 +18,12 @@ export const STORAGE_KEYS = {
    * 가리키는 이름표라서 비밀이 아니고, 기기에 그대로 남긴다.
    */
   workspaceId: "echodiary.workspaceId",
+  /** 어느 제공자로 첨삭할지 — "anthropic" | "compat" */
+  provider: "echodiary.provider",
+  /** OpenAI 호환 제공자의 키 (Anthropic 키와 따로 둔다) */
+  compatKey: "echodiary.compatKey",
+  compatBaseUrl: "echodiary.compatBaseUrl",
+  compatModel: "echodiary.compatModel",
   textSize: "echodiary.textSize",
   /** 아직 저장하지 않은 일기 */
   draft: "echodiary.draft",

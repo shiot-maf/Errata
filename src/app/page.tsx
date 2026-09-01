@@ -335,6 +335,7 @@ const ERROR_WAY: Partial<
   Record<FeedbackError["kind"], { href: string; label: string; external?: boolean }>
 > = {
   workspace: { href: "/settings", label: "설정 열기" },
+  config: { href: "/settings", label: "설정 열기" },
   billing: {
     href: "https://console.anthropic.com/settings/billing",
     label: "콘솔에서 크레딧 충전",

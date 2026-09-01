@@ -43,7 +43,7 @@ diaryUsers/{uid}/mistakes/{id}
 | `/report` | **취약점 리포트** — 카테고리 빈도, 30일 추이, 반복 실수, 잔디 |
 | `/review` | **개념 단위 복습** — 규칙 설명 + 내 오답, 망각곡선으로 잡히는 일정 |
 | `/profile` | 내 기록 — 1년 잔디, 레벨·스트릭·칭호 도장, 세어둔 것, 개념 진행. **설정 입구** |
-| `/settings` | API 키, 모델, 글자 크기, 주간 목표, JSON·마크다운 백업 (프로필 안에 있다) |
+| `/settings` | 첨삭 제공자·키·모델, 글자 크기, 주간 목표, JSON·마크다운 백업 (프로필 안에 있다) |
 
 ### 리포트가 답해주는 것
 
@@ -187,7 +187,8 @@ WriterQuest에서 정리해둔 체계를 가져왔습니다 (`src/lib/game.ts`).
 - **Next.js 16** (App Router) + React 19 + TypeScript
 - **Tailwind CSS v4** — 잉크 한 색을 투명도로 굴리는 에디토리얼 디자인 시스템
 - **Firebase** Auth(Google) + Firestore
-- **Anthropic API 직접 호출** — 사용자 키를 브라우저에 두고 서버를 거치지 않음
+- **모델 API 직접 호출** — 사용자 키를 브라우저에 두고 서버를 거치지 않음.
+  Anthropic 또는 OpenAI 호환 엔드포인트(Gemini·Groq·OpenRouter·Cerebras·Ollama)
 - 의존성은 위 4개가 전부입니다. 차트·아이콘·diff 모두 직접 구현했습니다.
 
 ### 첨삭 모델
@@ -216,6 +217,32 @@ Haiku 4.5로 바꿀 수 있습니다. 첨삭은 하루 한 번 200단어 남짓�
 
 나중에 서버 프록시로 바꾸려면 `src/lib/ai/client.ts`의 `requestFeedback` 하나만
 `/api/feedback` 호출로 갈아끼우면 됩니다. 나머지 코드는 손댈 게 없습니다.
+
+### 첨삭 제공자
+
+기본은 Anthropic이지만, 여기에는 무료 티어가 없습니다. 그냥 둘러보려던 사람이
+결제 화면에서 멈추므로 **OpenAI 호환** 한 벌을 더 뒀습니다. 제공자마다 따로
+붙이지 않은 이유는 Gemini(AI Studio)·Groq·OpenRouter·Cerebras·Ollama가 모두
+`/chat/completions` 같은 모양을 쓰기 때문입니다 — 하나를 지원하면 전부 열립니다.
+
+설정에서 **주소·모델·키** 세 가지만 넣으면 됩니다. 모델 이름은 자주 바뀌므로
+앱이 목록을 들고 있지 않고, "모델 목록 불러오기"가 제공자의 `/models`에 직접
+물어봅니다.
+
+| | Anthropic | OpenAI 호환 |
+| --- | --- | --- |
+| 요청 | `POST /v1/messages`, `tools` + `tool_choice` | `POST /chat/completions`, `tools[].function` |
+| 스키마 | `FEEDBACK_TOOL.input_schema` | 같은 것을 `function.parameters`로 |
+| 응답 | `content[].tool_use.input` | `choices[0].message.tool_calls[0].function.arguments` |
+
+`src/lib/ai/client.ts`의 `callAnthropic` / `callCompat` 둘로 갈리고, 그 아래
+`normalize()`부터는 완전히 같은 길입니다. 도구를 부르지 않고 본문에 JSON을
+적어주는 작은 모델도 받아줍니다 — 스키마만 지켰다면 어디에 실려 왔는지는
+중요하지 않습니다.
+
+**주의.** 첨삭 품질은 고른 모델에 달려 있습니다. 이 앱은 실수마다 26개 카테고리
+중 하나를 붙이게 시키는데, 작은 모델은 그 분류를 자주 틀립니다. 잘못 붙은
+카테고리는 그대로 리포트와 복습에 쌓여서 없는 약점을 만들어냅니다.
 
 ### 워크스페이스 ID
 
