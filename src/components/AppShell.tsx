@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { appUrl } from "@/lib/basePath"
 import { useAuth } from "./AuthProvider"
-import { signInWithGoogle, signOutUser } from "@/lib/firebase/auth"
+import { signOutUser } from "@/lib/firebase/auth"
 import { listEntries, listMistakes, listSaved, refreshQuests } from "@/lib/firebase/db"
 import { currentWeekKeys, toDateKey } from "@/lib/dates"
 import { dueCount } from "@/lib/review/schedule"
 import { collectReviewItems } from "@/lib/review/item"
 import { onDueCount } from "@/lib/review/dueSignal"
 import { expToNext } from "@/lib/game"
+import { Landing } from "./Landing"
 import { MonthCalendar } from "./MonthCalendar"
 import { QuestPanel } from "./QuestPanel"
 import { WeeklyGoal } from "./WeeklyGoal"
@@ -466,111 +467,5 @@ export function PageHeader({
         </div>
       )}
     </div>
-  )
-}
-
-function Landing() {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const signIn = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      await signInWithGoogle()
-    } catch (e) {
-      const code = (e as { code?: string }).code
-      setError(
-        code === "auth/popup-closed-by-user"
-          ? "로그인 창이 닫혔어요."
-          : code === "auth/unauthorized-domain"
-            ? "이 도메인이 Firebase에 등록되지 않았어요. 콘솔의 승인된 도메인에 추가해주세요."
-            : "로그인에 실패했어요. 잠시 후 다시 시도해주세요.",
-      )
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-16">
-      <div className="sheet reveal">
-        <div className="px-6 pt-8 pb-4 md:px-12 md:pt-12">
-          <span className="font-mono text-3xl font-semibold tracking-[0.22em] md:text-5xl">
-            ERR<span className="text-pen">A</span>TA
-          </span>
-          <p className="mt-3 text-ink-3">
-            Write. Correct. Count. — 틀린 것을 세어 두는 일기
-          </p>
-        </div>
-        <div className="rule-double" />
-        <div className="flex gap-5 border-b border-rule px-6 py-2 font-mono text-[10px] tracking-[0.1em] text-ink-3 uppercase md:px-12">
-          <span>English diary</span>
-          <span>26 categories</span>
-          <span>Bring your own key</span>
-        </div>
-
-        <div className="px-6 py-8 md:px-12 md:py-12">
-          <h1 className="text-2xl leading-snug font-semibold tracking-[-0.02em] md:text-3xl">
-            영어로 하루를 적으면
-            <br />
-            내가 반복해서 틀리는 지점이 데이터로 쌓입니다.
-          </h1>
-
-          <ol className="mt-10 grid gap-x-8 gap-y-6 sm:grid-cols-2">
-            <Step no="01" title="쓰면 바로 첨삭">
-              무엇이 왜 틀렸는지 한국어로 설명합니다.
-            </Step>
-            <Step no="02" title="모든 실수에 태그">
-              시제·관사·전치사 등 26개 카테고리로 자동 분류됩니다.
-            </Step>
-            <Step no="03" title="취약점 리포트">
-              무엇을 가장 많이 틀리는지, 나아지고 있는지 추이로 봅니다.
-            </Step>
-            <Step no="04" title="내 오답으로 복습">
-              자주 틀린 것부터 골라 다시 물어봅니다.
-            </Step>
-          </ol>
-
-          <div className="mt-10 border-t border-rule pt-8">
-            <button
-              onClick={signIn}
-              disabled={busy}
-              className="w-full bg-ink px-6 py-4 font-mono text-xs font-semibold tracking-[0.14em] text-sheet uppercase transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
-            >
-              {busy ? "연결 중" : "Google로 시작하기"}
-            </button>
-            {error && <p className="mt-3 text-sm text-pen">{error}</p>}
-            <p className="mt-4 text-xs text-ink-3">
-              일기는 내 계정에만 저장되고, API 키는 브라우저를 벗어나지 않습니다.
-            </p>
-            <p className="mt-6 border-t border-rule-2 pt-5 text-sm text-ink-3">
-              그냥 어떤 앱인지 보고 싶다면{" "}
-              <a href={appUrl("/?demo=1")} className="font-medium text-ink underline underline-offset-4">
-                샘플 데이터로 둘러보기
-              </a>{" "}
-              — 로그인도 API 키도 필요 없습니다.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Step({
-  no,
-  title,
-  children,
-}: {
-  no: string
-  title: string
-  children: ReactNode
-}) {
-  return (
-    <li className="border-t border-rule-2 pt-4">
-      <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-pen">{no}</span>
-      <p className="mt-2 font-medium">{title}</p>
-      <p className="mt-1 text-sm leading-relaxed text-ink-3">{children}</p>
-    </li>
   )
 }
