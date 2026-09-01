@@ -1,6 +1,7 @@
 import type { Entry, Mistake, SavedItem, UserProfile } from "../types"
 import { addDays, toDateKey } from "../dates"
 import { defaultQuests } from "../game"
+import { GRADUATED_BOX } from "../review/schedule"
 
 /**
  * 데모용 씨앗 데이터.
@@ -19,6 +20,14 @@ interface SeedCorrection {
   severity: "minor" | "moderate" | "major"
   explanation: string
   tip?: string
+  /**
+   * 이 실수는 복습을 끝까지 통과했다(마지막 상자).
+   *
+   * 상자는 보통 seededBox가 날짜로 정하지만, 개념 졸업 칭호는 한 카테고리에서
+   * 다섯 개를 졸업시켜야 나온다. 그 조건은 날짜만 보고는 만들 수 없어서
+   * 여기서 직접 찍는다.
+   */
+  graduated?: boolean
 }
 
 interface SeedEntry {
@@ -713,6 +722,7 @@ const SEED: SeedEntry[] = [
         explanation:
           "everyday는 '일상적인'이라는 형용사이고, '매일'은 every day로 띄어 씁니다.",
         tip: "매일 = every day (띄어쓰기). everyday는 형용사.",
+        graduated: true,
       },
       {
         original: "how long I can keep",
@@ -720,6 +730,7 @@ const SEED: SeedEntry[] = [
         category: "phrasal-verb",
         severity: "moderate",
         explanation: "keep은 목적어가 필요합니다. 습관을 이어간다는 뜻은 keep it up이에요.",
+        graduated: true,
       },
     ],
     upgrades: [],
@@ -730,7 +741,7 @@ const SEED: SeedEntry[] = [
     correctedText:
       "I'm studying English to improve my career prospects. But sometimes I feel frustrated because my speaking isn't improving. A friend told me that writing a diary every day helps. So I started today. I hope I can keep it up.",
     overallComment:
-      "첫 일기네요. 하고 싶은 말이 분명해서 읽기 좋았어요. for + 동사원형은 한국어 '~하기 위해'를 그대로 옮길 때 자주 나오는 실수인데, 영어에서는 to부정사를 씁니다.",
+      "한동안 쉬었다가 다시 쓴 글이네요. 하고 싶은 말이 분명해서 읽기 좋았어요. for + 동사원형은 한국어 '~하기 위해'를 그대로 옮길 때 자주 나오는 실수인데, 영어에서는 to부정사를 씁니다.",
     praise: ["하고 싶은 말을 군더더기 없이 전달했어요."],
     level: "A2",
     scores: { grammar: 60, vocabulary: 64, fluency: 66 },
@@ -773,6 +784,109 @@ const SEED: SeedEntry[] = [
         severity: "minor",
         explanation:
           "습관을 이어간다는 뜻으로는 keep it up이 더 자연스럽습니다.",
+        graduated: true,
+      },
+    ],
+    upgrades: [],
+  },
+  {
+    daysAgo: 58,
+    text: "Last weekend I finally cleaned my room. I found a lot of old notebooks, and I threw away them without reading. My mother said she would pick up me at the station, so I hurried. On the way home I stopped by a bakery, but the bread I wanted was already sold out. I recieved a message from my sister at night, and we talked about our plans for the holiday. It was a quiet weekend, but it felt necesary.",
+    correctedText:
+      "Last weekend I finally cleaned my room. I found a lot of old notebooks, and I threw them away without reading. My mother said she would pick me up at the station, so I hurried. On the way home I stopped by a bakery, but the bread I wanted was already sold out. I received a message from my sister at night, and we talked about our plans for the holiday. It was a quiet weekend, but it felt necessary.",
+    overallComment:
+      "하루의 순서가 또박또박 이어져서 읽기 편했어요. 오늘 걸린 건 두 가지인데, 둘 다 규칙이 분명한 것들이라 한 번 잡아두면 다시 틀릴 일이 거의 없습니다. 하나는 구동사에 대명사가 붙는 자리, 다른 하나는 철자예요.",
+    praise: [
+      "stop by, sell out 같은 표현을 맥락에 맞게 썼어요.",
+      "시간 순서가 흐트러지지 않아 장면이 그려집니다.",
+    ],
+    level: "B1",
+    scores: { grammar: 66, vocabulary: 70, fluency: 71 },
+    corrections: [
+      {
+        original: "I threw away them",
+        corrected: "I threw them away",
+        category: "phrasal-verb",
+        severity: "moderate",
+        explanation:
+          "throw away처럼 목적어를 사이에 넣을 수 있는 구동사는, 목적어가 대명사면 반드시 사이에 넣습니다. throw away them은 쓸 수 없어요.",
+        tip: "구동사 + 대명사 = 무조건 사이에. (throw it away / pick me up)",
+        graduated: true,
+      },
+      {
+        original: "pick up me",
+        corrected: "pick me up",
+        category: "phrasal-verb",
+        severity: "moderate",
+        explanation:
+          "위와 같은 규칙입니다. 대명사 me는 pick과 up 사이에 들어갑니다.",
+        graduated: true,
+      },
+      {
+        original: "I recieved a message",
+        corrected: "I received a message",
+        category: "spelling",
+        severity: "minor",
+        explanation: "c 다음에는 ei입니다 — receive, ceiling, deceive.",
+        tip: "i before e, except after c.",
+        graduated: true,
+      },
+      {
+        original: "it felt necesary",
+        corrected: "it felt necessary",
+        category: "spelling",
+        severity: "minor",
+        explanation: "necessary는 s가 두 개입니다 (nece-ssary).",
+        graduated: true,
+      },
+    ],
+    upgrades: [
+      {
+        original: "It was a quiet weekend",
+        better: "It was an uneventful weekend",
+        note: "특별한 일이 없었다는 뜻까지 한 단어에 담깁니다.",
+      },
+    ],
+  },
+  {
+    daysAgo: 66,
+    text: "I started a new habit this month. Every morning I write down three sentences in English before I turn on my laptop. At first it was hard, and twice I put off to write until midnight. My teacher told me that consistensy matters more than length, and I think she is right. Yesterday I read my first page again, and the diffrence was clear even to me.",
+    correctedText:
+      "I started a new habit this month. Every morning I write down three sentences in English before I turn on my laptop. At first it was hard, and twice I put off writing until midnight. My teacher told me that consistency matters more than length, and I think she is right. Yesterday I read my first page again, and the difference was clear even to me.",
+    overallComment:
+      "짧은데 하고 싶은 말이 다 들어 있어요. put off 뒤의 형태만 바로잡으면 문장이 매끄러워집니다. 이 동사는 뒤에 to부정사가 아니라 -ing를 데려옵니다.",
+    praise: [
+      "write down, turn on을 자연스럽게 썼어요.",
+      "마지막 문장이 글 전체를 잘 닫아줍니다.",
+    ],
+    level: "A2",
+    scores: { grammar: 62, vocabulary: 66, fluency: 68 },
+    corrections: [
+      {
+        original: "I put off to write",
+        corrected: "I put off writing",
+        category: "phrasal-verb",
+        severity: "moderate",
+        explanation:
+          "put off(미루다) 뒤에는 -ing가 옵니다. to부정사를 데려오는 동사(decide, plan)와 헷갈리기 쉬워요.",
+        tip: "put off / give up / keep on — 모두 뒤에 -ing.",
+        graduated: true,
+      },
+      {
+        original: "consistensy",
+        corrected: "consistency",
+        category: "spelling",
+        severity: "minor",
+        explanation: "-ency로 끝납니다 (consistent → consistency).",
+        graduated: true,
+      },
+      {
+        original: "the diffrence",
+        corrected: "the difference",
+        category: "spelling",
+        severity: "minor",
+        explanation: "different의 e가 그대로 남습니다 — diff-e-rence.",
+        graduated: true,
       },
     ],
     upgrades: [],
@@ -866,7 +980,7 @@ export function demoData() {
       // 복습이 이미 굴러가고 있는 것처럼 보여야 한다. 전부 상자 0에 몰려
       // 있으면 망각곡선도, 졸업도, 밀린 개수도 화면에 드러나지 않는다.
       // 오래된 실수일수록 여러 번 통과한 것으로 둔다.
-      const box = seededBox(seed.daysAgo, j)
+      const box = c.graduated ? GRADUATED_BOX : seededBox(seed.daysAgo, j)
       const reviewed = box > 0
       mistakes.push({
         id: `demo-mistake-${i}-${j}`,
@@ -984,17 +1098,27 @@ export function demoData() {
       displayName: "데모 사용자",
       email: "demo@errata.app",
       photoURL: null,
-      createdAt: now - 32 * 86_400_000,
+      // 가장 오래된 일기(66일 전)보다 앞서야 앞뒤가 맞는다
+      createdAt: now - 72 * 86_400_000,
       streak: 3,
       longestStreak: 5,
       lastEntryDate: entries[0].dateKey,
       totalEntries: entries.length,
       totalWords,
       weeklyGoal: 3,
-      // 일기 14편을 쓴 사람이 도달했을 법한 상태
+      // 일기 열몇 편을 쓴 사람이 도달했을 법한 상태
       level: 4,
       exp: 720,
-      titles: [],
+      /*
+       * 도장 두 개.
+       *
+       * 레벨 마일스톤 칭호는 레벨 10부터라 이 사람에게는 아직 없다. 대신
+       * 개념 졸업생 둘을 준다 — 구동사와 철자는 다섯 개씩 마지막 상자까지
+       * 올렸고, 30일 넘게 같은 실수가 새로 나오지 않았다. 씨앗 데이터가
+       * masteredCategories()의 조건을 실제로 만족하도록 짜여 있으므로,
+       * 프로필의 "26개 중 2개를 뗐어요"와 이 도장이 같은 말을 한다.
+       */
+      titles: ["구동사 졸업생", "철자 졸업생"],
       quests: demoQuests(),
     },
     entries,
