@@ -60,6 +60,13 @@ export const Settings = ({ className = "h-5 w-5" }: P) => (
   </svg>
 )
 
+export const User = ({ className = "h-5 w-5" }: P) => (
+  <svg {...base} className={className}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+)
+
 export const Flame = ({ className = "h-3.5 w-3.5" }: P) => (
   <svg {...base} strokeWidth={2} className={className}>
     <path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4" />

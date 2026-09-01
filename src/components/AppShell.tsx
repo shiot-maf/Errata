@@ -22,8 +22,8 @@ import {
   PenLine,
   Repeat,
   Flame,
-  Settings as SettingsIcon,
   Spinner,
+  User,
 } from "./icons"
 import type { Entry } from "@/lib/types"
 
@@ -33,8 +33,23 @@ const NAV = [
   { href: "/saved", label: "저장함", Icon: Bookmark },
   { href: "/report", label: "리포트", Icon: ChartColumn },
   { href: "/review", label: "복습", Icon: Repeat },
-  { href: "/settings", label: "설정", Icon: SettingsIcon },
+  /*
+   * 설정이 아니라 프로필이 탭에 온다.
+   *
+   * 설정은 한 번 맞춰놓으면 다시 열 일이 드문 화면이라 여섯 자리 중 하나를
+   * 차지할 이유가 없었다. 대신 매일 보게 되는 레벨·스트릭·도장을 올리고,
+   * 설정은 그 안에 넣는다(휴대폰의 프로필 → 설정과 같은 구조).
+   *
+   * 이름은 "내 기록"이 아니라 "프로필"이다. 바로 옆에 "기록"(지난 일기)이
+   * 있어서 탭 줄에서 둘이 헷갈린다.
+   */
+  { href: "/profile", label: "프로필", Icon: User },
 ]
+
+/** 설정은 프로필 안에 산다 — 설정 화면에서도 프로필 탭이 켜져 있어야 한다 */
+const NESTED: Record<string, string[]> = {
+  "/profile": ["/settings"],
+}
 
 /** 화면마다 판권줄 오른쪽에 붙는 짧은 설명 */
 const EDITION: Record<string, string> = {
@@ -115,7 +130,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const route = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname
 
   const isActive = (href: string) =>
-    href === "/" ? route === "/" : route.startsWith(href)
+    href === "/"
+      ? route === "/"
+      : route.startsWith(href) ||
+        (NESTED[href] ?? []).some((nested) => route.startsWith(nested))
 
   return (
     <div className="mx-auto max-w-6xl px-0 py-0 md:px-8 md:py-8">
@@ -233,13 +251,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <QuestPanel />
               </SideBlock>
               <div className="border-t border-rule-2 pt-5">
-                <Link
-                  href="/profile"
-                  className="label-sm block hover:text-ink"
-                >
-                  내 기록
-                </Link>
-                <p className="mt-2 truncate font-mono text-[10px] tracking-[0.06em] text-ink-3">
+                <p className="truncate font-mono text-[10px] tracking-[0.06em] text-ink-3">
                   {user.email}
                 </p>
                 {demo ? (
@@ -283,7 +295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-label="주 메뉴"
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-ink bg-sheet pb-[max(env(safe-area-inset-bottom),8px)] md:hidden"
       >
-        {NAV.slice(0, 5).map(({ href, label, Icon }) => {
+        {NAV.map(({ href, label, Icon }) => {
           const on = isActive(href)
           const badge = href === "/review" && due > 0 ? due : null
           return (
