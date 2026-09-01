@@ -78,7 +78,7 @@ export function buildOverview(entries: Entry[], mistakes: Mistake[], days = 120)
     categories: computeCategoryStats(mistakes, entries),
     groups: computeGroupStats(mistakes),
     repeated: computeRepeated(mistakes),
-    activity: computeActivity(entries, mistakes, days),
+    activity: dailyActivity(entries, mistakes, days),
   }
 }
 
@@ -224,7 +224,10 @@ function computeErrorRateTrend(analyzed: Entry[]): number | null {
   return rate(recent) - rate(prior)
 }
 
-function computeActivity(entries: Entry[], mistakes: Mistake[], days: number) {
+/**
+ * 최근 N일의 하루치 활동. 히트맵이 쓰는 값이라 리포트 밖(프로필)에서도 부른다.
+ */
+export function dailyActivity(entries: Entry[], mistakes: Mistake[], days: number) {
   const words = new Map<string, number>()
   const counts = new Map<string, number>()
   for (const e of entries) {
