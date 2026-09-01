@@ -83,8 +83,8 @@ export default function WritePage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [needsKey, setNeedsKey] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // 설정에서 고쳐야 하는 오류인지 — 그때만 갈 길을 같이 보여준다
-  const [errorInSettings, setErrorInSettings] = useState(false)
+  // 갈 곳이 정해진 오류인지 — 그때만 길을 같이 보여준다
+  const [errorKind, setErrorKind] = useState<FeedbackError["kind"] | null>(null)
 
   const abortRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -120,7 +120,7 @@ export default function WritePage() {
 
     setAnalyzing(true)
     setError(null)
-    setErrorInSettings(false)
+    setErrorKind(null)
     setNeedsKey(false)
     const controller = new AbortController()
     abortRef.current = controller
@@ -165,7 +165,7 @@ export default function WritePage() {
         if (e.kind === "no_key") setNeedsKey(true)
         else {
           setError(e.message)
-          setErrorInSettings(e.kind === "workspace")
+          setErrorKind(e.kind)
         }
       } else {
         console.error(e)
@@ -307,19 +307,7 @@ export default function WritePage() {
 
       <div className="mt-6 space-y-4">
         {needsKey && <ApiKeyPrompt onSaved={() => void analyze()} />}
-        {error && (
-          <ErrorNote>
-            {error}
-            {errorInSettings && (
-              <>
-                {" "}
-                <Link href="/settings" className="underline underline-offset-4">
-                  설정 열기
-                </Link>
-              </>
-            )}
-          </ErrorNote>
-        )}
+        {error && <ErrorNote>{error}{errorKind && <ErrorWay kind={errorKind} />}</ErrorNote>}
         {analyzing && <Loading label="첨삭하는 중… 20초쯤 걸려요" />}
       </div>
 
@@ -335,6 +323,43 @@ export default function WritePage() {
         에 있어요.
       </p>
     </div>
+  )
+}
+
+/*
+ * 어떤 오류는 여기서 고칠 수 없다 — 워크스페이스는 설정에서, 크레딧은
+ * 콘솔에서 고쳐야 한다. 문장으로만 알려주면 그 자리를 다시 찾아가야 하므로
+ * 갈 길을 붙여준다.
+ */
+const ERROR_WAY: Partial<
+  Record<FeedbackError["kind"], { href: string; label: string; external?: boolean }>
+> = {
+  workspace: { href: "/settings", label: "설정 열기" },
+  billing: {
+    href: "https://console.anthropic.com/settings/billing",
+    label: "콘솔에서 크레딧 충전",
+    external: true,
+  },
+  auth: { href: "/settings", label: "키 다시 넣기" },
+}
+
+function ErrorWay({ kind }: { kind: FeedbackError["kind"] }) {
+  const way = ERROR_WAY[kind]
+  if (!way) return null
+  const className = "underline underline-offset-4"
+  return (
+    <>
+      {" "}
+      {way.external ? (
+        <a href={way.href} target="_blank" rel="noreferrer" className={className}>
+          {way.label}
+        </a>
+      ) : (
+        <Link href={way.href} className={className}>
+          {way.label}
+        </Link>
+      )}
+    </>
   )
 }
 

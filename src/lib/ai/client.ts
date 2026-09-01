@@ -156,6 +156,7 @@ export class FeedbackError extends Error {
       | "no_key"
       | "auth"
       | "workspace"
+      | "billing"
       | "rate_limit"
       | "network"
       | "malformed"
@@ -229,6 +230,14 @@ export async function requestFeedback(args: {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "")
+    // 크레딧이 없다. 코드로 고칠 수 없는 것이므로 어디로 가야 하는지만
+    // 정확히 말해준다. 구독료와 API 크레딧은 지갑이 다르다.
+    if (body.includes("credit balance")) {
+      throw new FeedbackError(
+        "이 계정의 API 크레딧이 부족해요. 콘솔에서 충전하면 바로 됩니다. (Claude 구독료와 API 크레딧은 별개예요.)",
+        "billing",
+      )
+    }
     // 키는 멀쩡한데 워크스페이스를 안 정한 경우. 400 본문에만 적혀 오므로
     // 여기서 가려내지 않으면 "Anthropic API 오류 (400)"이라는, 무엇을 해야
     // 하는지 알 수 없는 말만 남는다.
@@ -246,8 +255,13 @@ export async function requestFeedback(args: {
     if (res.status === 429) {
       throw new FeedbackError("요청이 너무 잦아요. 잠시 후 다시 시도해주세요.", "rate_limit")
     }
+    /*
+     * 남은 것들. 예전에는 응답 본문을 통째로 붙여서 JSON 덩어리가 그대로
+     * 화면에 나왔다. 안에 사람이 읽을 문장이 이미 들어 있으므로 그것만
+     * 꺼내 쓴다. 모양이 다르면 그때만 원문 앞부분을 보여준다.
+     */
     throw new FeedbackError(
-      `Anthropic API 오류 (${res.status}). ${body.slice(0, 200)}`,
+      `Anthropic API 오류 (${res.status}). ${apiMessage(body) ?? body.slice(0, 200)}`,
       "server",
     )
   }
@@ -271,6 +285,17 @@ export async function requestFeedback(args: {
   }
 
   return { feedback: normalize(block.input, args.text), model }
+}
+
+/** 오류 본문에서 사람이 읽을 문장만 꺼낸다 */
+function apiMessage(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: unknown } }
+    const message = parsed.error?.message
+    return typeof message === "string" && message ? message : null
+  } catch {
+    return null
+  }
 }
 
 /**
