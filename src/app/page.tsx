@@ -265,19 +265,22 @@ export default function WritePage() {
           <TextSizeControl index={sizeIndex} onChange={setSize} />
         </div>
 
-        <div className="ruled mt-2 border-y border-rule py-4">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            aria-label="오늘의 영어 일기"
-            placeholder={`Today…\n\n${nudge}`}
-            rows={6}
-            spellCheck={false}
-            autoCapitalize="sentences"
-            style={{ fontSize: size, lineHeight: "32px", maxWidth: "62ch" }}
-            className="min-h-[12rem] w-full resize-none overflow-hidden bg-transparent text-ink caret-pen placeholder:text-ink-3"
-          />
+        <div className="mt-2 border-y border-rule py-4">
+          {/* 괘선은 안쪽에 — 바깥 여백이 줄을 밀면 글자가 줄 위에 앉지 않는다 */}
+          <div className="ruled">
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              aria-label="오늘의 영어 일기"
+              placeholder={`Today…\n\n${nudge}`}
+              rows={6}
+              spellCheck={false}
+              autoCapitalize="sentences"
+              style={{ fontSize: size, lineHeight: "32px", maxWidth: "62ch" }}
+              className="min-h-[12rem] w-full resize-none overflow-hidden bg-transparent text-ink caret-pen placeholder:text-ink-3"
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
