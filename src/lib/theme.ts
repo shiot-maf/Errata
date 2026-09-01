@@ -10,9 +10,12 @@
  * 두고 싶을 수 있어서 계정에 붙이지 않았다.
  */
 
+import { STORAGE_KEYS } from "./storageKeys"
+import { notifyStoredValueChanged } from "./browserStore"
+
 export type Theme = "system" | "light" | "dark"
 
-export const THEME_KEY = "errata.theme"
+export const THEME_KEY = STORAGE_KEYS.theme
 
 export function getTheme(): Theme {
   if (typeof window === "undefined") return "system"
@@ -29,6 +32,8 @@ export function setTheme(theme: Theme): void {
     window.localStorage.setItem(THEME_KEY, theme)
     document.documentElement.setAttribute("data-theme", theme)
   }
+  // 쓰고 나서 알린다 — 먼저 알리면 구독자가 옛 값을 읽는다.
+  notifyStoredValueChanged()
 }
 
 /**

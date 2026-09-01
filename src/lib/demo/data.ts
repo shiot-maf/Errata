@@ -810,6 +810,26 @@ let cached: {
   saved: SavedItem[]
 } | null = null
 
+/**
+ * 씨앗 데이터에 복습 이력을 입힌다.
+ *
+ * 규칙 없이 무작위로 흩뿌리면 새로고침마다 화면이 달라져서 데모가 설명하기
+ * 어려워진다. 날짜와 순번만 보고 정해서 언제 열어도 같은 그림이 나오게 한다.
+ */
+function seededBox(daysAgo: number, index: number): number {
+  if (daysAgo <= 2) return 0 // 최근 것은 아직 한 번도 안 봤다
+  if (daysAgo >= 40) return (index % 2) + 5 // 오래된 것 중 절반은 졸업
+  return ((daysAgo + index) % 4) + 1
+}
+
+function seededDue(now: number, daysAgo: number, box: number): number {
+  if (box >= 6) return now + 90 * 86_400_000 // 졸업 — 한참 뒤
+  // 오늘 밀린 게 한 세션 분량은 돼야 복습 화면이 비어 보이지 않고, 그렇다고
+  // 다 밀려 있으면 겁만 준다. 대략 1/4이 만기 지난 상태가 되게 잡는다.
+  const offset = ((daysAgo % 11) - 2) * 86_400_000
+  return now + offset
+}
+
 export function demoData() {
   if (cached) return cached
 
@@ -843,6 +863,11 @@ export function demoData() {
     })
 
     seed.corrections.forEach((c, j) => {
+      // 복습이 이미 굴러가고 있는 것처럼 보여야 한다. 전부 상자 0에 몰려
+      // 있으면 망각곡선도, 졸업도, 밀린 개수도 화면에 드러나지 않는다.
+      // 오래된 실수일수록 여러 번 통과한 것으로 둔다.
+      const box = seededBox(seed.daysAgo, j)
+      const reviewed = box > 0
       mistakes.push({
         id: `demo-mistake-${i}-${j}`,
         entryId: id,
@@ -854,7 +879,10 @@ export function demoData() {
         explanation: c.explanation,
         ...(c.tip ? { tip: c.tip } : {}),
         createdAt,
-        reviewCount: 0,
+        reviewCount: box,
+        ...(reviewed ? { lastReviewedAt: createdAt + 86_400_000 } : {}),
+        box,
+        dueAt: seededDue(now, seed.daysAgo, box),
       })
     })
   })
@@ -909,6 +937,42 @@ export function demoData() {
       back: "I was too nervous to get my point across",
       note: "회의 맥락에서는 이 표현이 더 구체적으로 들려요.",
       createdAt: now - 86_400_000,
+      // 담아둔 표현도 상자를 탄다. 데모에서 그게 보이도록 서로 다른 칸에 둔다.
+      box: 0,
+      dueAt: now - 3_600_000,
+      reviewCount: 0,
+    },
+    {
+      id: "demo-saved-4",
+      kind: "phrase",
+      sourceId: "demo-entry-6-upgrade-0",
+      entryId: "demo-entry-6",
+      dateKey: toDateKey(addDays(new Date(), -16)),
+      front: "The movie was very good",
+      back: "The movie stuck with me",
+      note: "감상이 오래 남았다는 뜻까지 담깁니다. very good은 아무 말도 하지 않아요.",
+      createdAt: now - 5 * 86_400_000,
+      box: 2,
+      dueAt: now - 86_400_000,
+      reviewCount: 2,
+      lastReviewedAt: now - 4 * 86_400_000,
+      lastReviewCorrect: true,
+    },
+    {
+      id: "demo-saved-5",
+      kind: "phrase",
+      sourceId: "demo-entry-9-upgrade-1",
+      entryId: "demo-entry-9",
+      dateKey: toDateKey(addDays(new Date(), -24)),
+      front: "I have to do many things today",
+      back: "I have a lot on my plate today",
+      note: "할 일이 밀려 있다는 느낌까지 들어가는 관용 표현이에요.",
+      createdAt: now - 9 * 86_400_000,
+      box: 4,
+      dueAt: now + 9 * 86_400_000,
+      reviewCount: 4,
+      lastReviewedAt: now - 7 * 86_400_000,
+      lastReviewCorrect: true,
     },
   ]
 

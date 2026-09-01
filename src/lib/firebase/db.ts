@@ -14,14 +14,17 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore"
 import { db } from "./client"
-import type { Entry, Feedback, Mistake, RawFeedback, UserProfile } from "../types"
+import type { Entry, Feedback, Mistake, RawFeedback, SavedItem, UserProfile } from "../types"
 import type { Severity } from "../taxonomy"
 import { nextStreak, toDateKey } from "../dates"
+import { nextSchedule, type Grade, type Scheduled } from "../review/schedule"
+import type { ReviewItem } from "../review/item"
 import { demoStore, isDemo } from "../demo/store"
 import {
   applyExp,
   applyQuests,
   defaultQuests,
+  mergeQuests,
   notify,
   resetQuests,
   type Quest,
@@ -43,6 +46,7 @@ const userRef = (uid: string) => doc(db, "diaryUsers", uid)
 const entriesRef = (uid: string) => collection(db, "diaryUsers", uid, "entries")
 const entryRef = (uid: string, id: string) => doc(db, "diaryUsers", uid, "entries", id)
 const mistakesRef = (uid: string) => collection(db, "diaryUsers", uid, "mistakes")
+const savedRef = (uid: string) => collection(db, "diaryUsers", uid, "saved")
 
 // ── 프로필 ────────────────────────────────────────────────────────
 
@@ -95,7 +99,8 @@ function withGameDefaults(data: UserProfile): UserProfile {
     level: data.level ?? 1,
     exp: data.exp ?? 0,
     titles: data.titles ?? [],
-    quests: data.quests?.length ? data.quests : defaultQuests(),
+    // 나중에 추가된 퀘스트가 기존 사용자에게도 보이도록 합친다
+    quests: mergeQuests(data.quests),
   }
 }
 
@@ -265,6 +270,9 @@ function toMistake(snap: QueryDocumentSnapshot): Mistake {
     reviewCount: d.reviewCount ?? 0,
     lastReviewedAt: d.lastReviewedAt,
     lastReviewCorrect: d.lastReviewCorrect,
+    box: d.box ?? 0,
+    // 이 기능 전에 쌓인 실수는 만기가 없다. 0이면 지금 만기로 읽힌다.
+    dueAt: d.dueAt ?? 0,
   }
 }
 
@@ -275,25 +283,38 @@ export async function listMistakes(uid: string, max = 1000): Promise<Mistake[]> 
   return snap.docs.map(toMistake)
 }
 
-export async function markReviewed(
+/**
+ * 복습 결과를 남긴다.
+ *
+ * 맞았는지만이 아니라 "다음에 언제 다시 물을지"까지 여기서 정해 붙인다.
+ * 일정이 문서에 붙어 있어야 다음에 열었을 때 밀린 것을 셀 수 있다.
+ *
+ * 실수와 담아둔 표현은 다른 컬렉션에 살지만 일정은 같은 상자를 쓴다.
+ * 어느 쪽에 쓸지만 여기서 갈라준다.
+ */
+export async function recordReview(
   uid: string,
-  mistakeId: string,
-  correct: boolean,
-  currentCount: number,
-): Promise<void> {
-  if (isDemo()) return demoStore.markReviewed(mistakeId, correct)
-  await updateDoc(doc(mistakesRef(uid), mistakeId), {
-    reviewCount: currentCount + 1,
+  item: ReviewItem,
+  grade: Grade,
+): Promise<Scheduled> {
+  const next = nextSchedule(item.box ?? 0, grade)
+  const patch = {
+    reviewCount: (item.reviewCount ?? 0) + 1,
     lastReviewedAt: Date.now(),
-    lastReviewCorrect: correct,
-  })
+    lastReviewCorrect: grade !== "wrong",
+    box: next.box,
+    dueAt: next.dueAt,
+  }
+
+  const ref = item.source === "saved" ? savedRef : mistakesRef
+
+  if (isDemo()) demoStore.recordReview(item.source, item.id, patch)
+  else await updateDoc(doc(ref(uid), item.id), patch)
+
+  return next
 }
 
 export { toDateKey }
-
-export async function deleteMistake(uid: string, mistakeId: string): Promise<void> {
-  await deleteDoc(doc(mistakesRef(uid), mistakeId))
-}
 
 // ── 저장함 (북마크) ────────────────────────────────────────────────
 
@@ -302,10 +323,6 @@ export async function deleteMistake(uid: string, mistakeId: string): Promise<voi
  * mistakes에 플래그를 다는 대신 별도 컬렉션에 복사하는 이유는,
  * 일기를 지우거나 재첨삭해도 저장해둔 표현은 남아야 하기 때문이다.
  */
-
-import type { SavedItem } from "../types"
-
-const savedRef = (uid: string) => collection(db, "diaryUsers", uid, "saved")
 
 export async function listSaved(uid: string, max = 500): Promise<SavedItem[]> {
   if (isDemo()) return demoStore.saved().slice(0, max)
@@ -323,6 +340,12 @@ export async function listSaved(uid: string, max = 500): Promise<SavedItem[]> {
       note: data.note ?? "",
       category: data.category,
       createdAt: data.createdAt ?? 0,
+      box: data.box ?? 0,
+      // 일정이 없는 건 이 기능 전에 담아둔 것이다. 지금 만기로 본다.
+      dueAt: data.dueAt ?? 0,
+      reviewCount: data.reviewCount ?? 0,
+      lastReviewedAt: data.lastReviewedAt,
+      lastReviewCorrect: data.lastReviewCorrect,
     } satisfies SavedItem
   })
 }
@@ -353,6 +376,8 @@ export async function removeSaved(uid: string, id: string): Promise<void> {
 export interface GameAward {
   exp?: number
   quests?: QuestBump[]
+  /** 레벨 마일스톤이 아니라 실력으로 얻는 칭호 (개념 졸업 등) */
+  titles?: string[]
 }
 
 /**
@@ -373,10 +398,12 @@ export async function award(uid: string, gain: GameAward): Promise<void> {
     gain.exp ?? 0,
   )
 
+  // 레벨에서 딴 칭호와 실력으로 딴 칭호를 합친다
+  const earnedTitles = (gain.titles ?? []).filter((t) => !level.titles.includes(t))
   const next = {
     level: level.level,
     exp: level.exp,
-    titles: level.titles,
+    titles: [...level.titles, ...earnedTitles],
     quests,
   }
 
@@ -389,7 +416,7 @@ export async function award(uid: string, gain: GameAward): Promise<void> {
   if (level.leveledUp) {
     notify({ kind: "levelup", title: `레벨 ${level.level} 달성`, detail: "계속 쓰고 있어요" })
   }
-  for (const title of level.earnedTitles) {
+  for (const title of [...level.earnedTitles, ...earnedTitles]) {
     notify({ kind: "title", title: "새 칭호", detail: title })
   }
 }

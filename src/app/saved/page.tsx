@@ -8,10 +8,46 @@ import { Empty, Loading, Pill, Segmented, Tag } from "@/components/ui"
 import { listSaved, removeSaved } from "@/lib/firebase/db"
 import { categoryColor, getCategory } from "@/lib/taxonomy"
 import { formatKo } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 import { invalidateSaved } from "@/components/SaveButton"
+import { BoxTrail } from "@/components/BoxTrail"
+import { GRADUATED_BOX, daysUntil } from "@/lib/review/schedule"
 import type { SavedItem } from "@/lib/types"
 
 type Filter = "all" | "correction" | "phrase"
+
+/**
+ * 담아둔 것이 복습에서 어디쯤 와 있는지.
+ *
+ * 저장함과 복습이 서로 다른 말을 하면 안 된다. 여기 있는 표현이 복습에도
+ * 나온다는 걸 이 줄이 알려준다. 교정 북마크는 원본 실수 쪽에 일정이 붙으므로
+ * 여기서는 표시하지 않는다.
+ */
+function SavedSchedule({ item, now }: { item: SavedItem; now: number }) {
+  if (item.kind === "correction") {
+    return (
+      <p className="mt-3 text-[11px] text-ink-3">
+        원본 교정과 같은 일정으로 복습에 나와요.
+      </p>
+    )
+  }
+
+  const box = item.box ?? 0
+  const days = daysUntil(item.dueAt ?? 0, now)
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <BoxTrail box={box} />
+      <span className="text-[11px] text-ink-3">
+        {box >= GRADUATED_BOX
+          ? "졸업했어요"
+          : days === 0
+            ? "오늘 복습에 나와요"
+            : `${days}일 뒤 복습에 나와요`}
+      </span>
+    </div>
+  )
+}
 
 /** 저장함 필터: "표현"은 제안(phrase)과 발췌(selection)를 함께 담는다. */
 const matchesFilter = (kind: string, filter: Filter) =>
@@ -21,13 +57,17 @@ const matchesFilter = (kind: string, filter: Filter) =>
 export default function SavedPage() {
   const { user } = useAuth()
   const [items, setItems] = useState<SavedItem[] | null>(null)
+  const [now, setNow] = useState(0)
   const [filter, setFilter] = useState<Filter>("all")
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
     listSaved(user.uid)
-      .then(setItems)
+      .then((list) => {
+        setItems(list)
+        setNow(Date.now())
+      })
       .catch(() => setItems([]))
   }, [user])
 
@@ -105,13 +145,13 @@ export default function SavedPage() {
                   ) : (
                     <Tag>{item.kind === "selection" ? "발췌" : "표현"}</Tag>
                   )}
-                  <span className="ml-auto text-[11px] text-ink-4">
+                  <span className="ml-auto text-[11px] text-ink-3">
                     {item.dateKey && formatKo(item.dateKey)}
                   </span>
                   <button
                     onClick={() => drop(item.id)}
                     aria-label="저장함에서 빼기"
-                    className="text-[11px] font-bold tracking-[0.14em] text-ink-4 uppercase hover:text-ink"
+                    className="text-[11px] font-bold tracking-[0.14em] text-ink-3 uppercase hover:text-ink"
                   >
                     빼기
                   </button>
@@ -141,6 +181,7 @@ export default function SavedPage() {
                     {open && item.note && (
                       <p className="mt-3 text-sm leading-relaxed text-ink-2">{item.note}</p>
                     )}
+                    <SavedSchedule item={item} now={now} />
                   </>
                 ) : (
                   /* 드래그해서 담은 발췌 — 맞힐 정답이 없으니 그냥 보여준다 */
@@ -153,13 +194,16 @@ export default function SavedPage() {
                         {item.note}
                       </p>
                     )}
+                    <p className="mt-3 text-[11px] text-ink-3">
+                      정답 짝이 없어서 복습 문제로는 나오지 않아요.
+                    </p>
                   </>
                 )}
 
                 {item.entryId && (
                   <Link
-                    href={`/history/entry?id=${item.entryId}`}
-                    className="mt-3 inline-block text-[11px] text-ink-4 underline underline-offset-2 hover:text-ink"
+                    href={entryHref(item.entryId)}
+                    className="mt-3 inline-block text-[11px] text-ink-3 underline underline-offset-2 hover:text-ink"
                   >
                     원래 일기 보기
                   </Link>

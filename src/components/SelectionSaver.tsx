@@ -6,6 +6,7 @@ import { useAuth } from "./AuthProvider"
 import { addSaved, award, listSaved } from "@/lib/firebase/db"
 import { EXP } from "@/lib/game"
 import { invalidateSaved } from "./SaveButton"
+import { useBrowserValue } from "@/lib/browserStore"
 import { Bookmark } from "./icons"
 
 /**
@@ -47,8 +48,10 @@ export function SelectionSaver({
    * 좌표 계산을 그 조상에 맞춰 보정하는 대신 body로 빼낸다. 나중에 어떤 래퍼가
    * 생기든 영향을 받지 않는다.
    */
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  // 포털은 body가 있어야 하므로 브라우저에 도착한 뒤에만 그린다.
+  // useState + useEffect로 하면 렌더가 한 번 더 돈다. 정적 HTML에는 없고
+  // 브라우저에만 있는 값을 읽는 통로가 이미 있으니 그걸 쓴다.
+  const mounted = useBrowserValue(() => true, false)
 
   const dismiss = useCallback(() => {
     setPopup(null)
@@ -118,23 +121,30 @@ export function SelectionSaver({
 
   const save = async () => {
     if (!user || !popup || saved) return
-    await addSaved(user.uid, {
-      kind: "selection",
-      sourceId: `${entryId}-sel-${popup.text.slice(0, 40)}`,
-      entryId,
-      dateKey,
-      front: popup.text,
-      back: "",
-      note: findSentence(sourceText, popup.text),
-    })
-    invalidateSaved()
+    try {
+      await addSaved(user.uid, {
+        kind: "selection",
+        sourceId: `${entryId}-sel-${popup.text.slice(0, 40)}`,
+        entryId,
+        dateKey,
+        front: popup.text,
+        back: "",
+        note: findSentence(sourceText, popup.text),
+      })
+      invalidateSaved()
 
-    // 북마크 버튼으로 담을 때와 같은 보상을 준다.
-    await award(user.uid, {
-      exp: EXP.saved,
-      quests: [{ id: "once_saved", set: (await listSaved(user.uid)).length }],
-    })
-    await refreshProfile()
+      // 북마크 버튼으로 담을 때와 같은 보상을 준다.
+      await award(user.uid, {
+        exp: EXP.saved,
+        quests: [{ id: "once_saved", set: (await listSaved(user.uid)).length }],
+      })
+      await refreshProfile()
+    } catch (e) {
+      // 담기지 않았는데 "저장됨"이 뜨면 안 된다. 팝업을 닫지 않고 남겨서
+      // 다시 눌러볼 수 있게 둔다.
+      console.error("표현을 담지 못했습니다:", e)
+      return
+    }
 
     setSaved(true)
     window.setTimeout(dismiss, 900)

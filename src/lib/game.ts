@@ -30,11 +30,26 @@ export const EXP = {
   corrected: 50,
   /** 교정할 게 하나도 없었을 때 */
   flawless: 100,
-  /** 복습 문제를 맞혔을 때 */
+  /** 복습 문제를 맞혔을 때의 기본값 — 상자가 높을수록 reviewExp()가 올려준다 */
   reviewCorrect: 15,
+  /** 실수 하나를 졸업시켰을 때 */
+  graduated: 40,
   /** 표현을 저장함에 담았을 때 */
   saved: 5,
 } as const
+
+/**
+ * 복습 한 문제의 EXP.
+ *
+ * 어제 본 것을 오늘 맞히는 것과, 35일 만에 나온 것을 맞히는 것은 같은 일이
+ * 아니다. 뒤엣것이 실제로 외운 것에 가깝다. 상자가 높을수록 더 준다.
+ * "거의 맞음"은 절반 — 아깝게 틀린 것을 0으로 만들면 다시 안 온다.
+ */
+export function reviewExp(box: number, grade: "correct" | "close" | "wrong"): number {
+  if (grade === "wrong") return 0
+  const earned = EXP.reviewCorrect * (1 + Math.max(0, box) * 0.4)
+  return Math.round(grade === "close" ? earned / 2 : earned)
+}
 
 export type QuestType = "daily" | "weekly" | "once"
 
@@ -63,9 +78,30 @@ export function defaultQuests(): Quest[] {
     { id: "daily_words", type: "daily", title: "오늘 60단어 이상 쓰기", target: 60, progress: 0, done: false, lastResetDate: date },
     { id: "weekly_days", type: "weekly", title: "주 5일 이상 쓰기", target: 5, progress: 0, done: false, lastResetWeek: week },
     { id: "weekly_review", type: "weekly", title: "이번 주 복습 20문제", target: 20, progress: 0, done: false, lastResetWeek: week },
+    { id: "daily_review", type: "daily", title: "오늘 복습 10문제", target: 10, progress: 0, done: false, lastResetDate: date },
+    { id: "weekly_graduate", type: "weekly", title: "이번 주 실수 5개 졸업", target: 5, progress: 0, done: false, lastResetWeek: week },
     { id: "once_flawless", type: "once", title: "교정 없는 일기 쓰기", target: 1, progress: 0, done: false },
     { id: "once_saved", type: "once", title: "저장함에 표현 10개 담기", target: 10, progress: 0, done: false },
   ]
+}
+
+/**
+ * 저장된 퀘스트에 나중에 생긴 퀘스트를 채워 넣는다.
+ *
+ * 프로필 문서에는 그 사람이 처음 가입할 때의 퀘스트 목록이 통째로 저장돼
+ * 있다. 나중에 퀘스트를 추가하면 새로 가입한 사람에게만 보이고 기존 사용자는
+ * 영영 못 보게 되므로, 읽을 때 id를 기준으로 합친다. 진행도는 저장된 쪽을
+ * 그대로 둔다.
+ */
+export function mergeQuests(saved: Quest[] | undefined): Quest[] {
+  const defaults = defaultQuests()
+  if (!saved?.length) return defaults
+
+  const known = new Set(saved.map((q) => q.id))
+  const added = defaults.filter((q) => !known.has(q.id))
+  // 사라진 퀘스트는 조용히 버린다 — 목록에 없는 id는 화면에 뜰 자리가 없다.
+  const alive = new Set(defaults.map((q) => q.id))
+  return [...saved.filter((q) => alive.has(q.id)), ...added]
 }
 
 /**
@@ -174,6 +210,17 @@ export function getMilestoneTitle(level: number): string | null {
   if (MILESTONES[level]) return MILESTONES[level]
   if (level > 10 && level % 10 === 0) return `Lv.${level} 기록자`
   return null
+}
+
+/**
+ * 개념 하나를 떼었을 때 주는 칭호.
+ *
+ * 레벨 칭호는 오래 쓰면 저절로 붙지만 이건 다르다. 그 카테고리에서 실제로
+ * 여러 개를 졸업시키고, 최근에는 같은 실수가 나오지 않아야 얻는다.
+ * 26개 카테고리가 그대로 26개의 목표가 된다.
+ */
+export function categoryTitle(categoryKo: string): string {
+  return `${categoryKo} 졸업생`
 }
 
 // ── 알림 ──────────────────────────────────────────────────────────

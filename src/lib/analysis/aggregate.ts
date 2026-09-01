@@ -204,13 +204,17 @@ function normalize(s: string): string {
     .trim()
 }
 
-/** 최근 5편과 그 이전 5편의 100단어당 실수 수를 비교한다. */
+/**
+ * 최근 5편과 그 이전 5편의 100단어당 실수 수를 비교한다.
+ * 이전 구간이 2편은 돼야 비교가 의미를 갖는다 = 첨삭받은 일기 7편부터.
+ */
+export const ERROR_RATE_TREND_MIN_ENTRIES = 7
+
 function computeErrorRateTrend(analyzed: Entry[]): number | null {
-  if (analyzed.length < 4) return null
+  if (analyzed.length < ERROR_RATE_TREND_MIN_ENTRIES) return null
   const sorted = [...analyzed].sort((a, b) => b.createdAt - a.createdAt)
   const recent = sorted.slice(0, 5)
   const prior = sorted.slice(5, 10)
-  if (prior.length < 2) return null
 
   const rate = (list: Entry[]) => {
     const words = list.reduce((s, e) => s + e.wordCount, 0)

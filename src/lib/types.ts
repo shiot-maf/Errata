@@ -24,6 +24,14 @@ export interface Mistake {
   lastReviewedAt?: number
   /** 마지막 복습에서 맞혔는지 */
   lastReviewCorrect?: boolean
+
+  /**
+   * 망각곡선 상자 (0~6). 맞힐 때마다 한 칸 오르고 다음 만남이 멀어진다.
+   * 마지막 칸이 졸업이다. 이 기능 전에 쌓인 문서에는 없으므로 선택 항목이다.
+   */
+  box?: number
+  /** 다음 복습 시각. 없으면 지금 만기로 본다. */
+  dueAt?: number
 }
 
 /** 첨삭 전에도 저장되는 일기 한 편 */
@@ -130,4 +138,14 @@ export interface SavedItem {
   note: string
   category?: string
   createdAt: number
+
+  /**
+   * 복습 일정. 실수와 같은 상자를 쓴다 — 담아둔 표현도 잊어버리기는 마찬가지다.
+   * (정답 짝이 없는 selection은 문제로 만들 수 없어 일정이 붙지 않는다.)
+   */
+  box?: number
+  dueAt?: number
+  reviewCount?: number
+  lastReviewedAt?: number
+  lastReviewCorrect?: boolean
 }

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/AppShell"
 import { Empty, Loading, Pill, Segmented, Tag } from "@/components/ui"
 import { listEntries } from "@/lib/firebase/db"
 import { formatKo } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 import { DiffText } from "@/components/DiffText"
 import type { Entry } from "@/lib/types"
 
@@ -93,8 +94,10 @@ export default function HistoryPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="일기 내용 검색"
+              type="search"
               placeholder="내용으로 검색"
-              className="min-w-0 flex-1 rounded-full border border-rule bg-transparent px-4 py-2 text-sm outline-none focus:border-ink/35"
+              className="min-w-0 flex-1 rounded-full border border-field bg-transparent px-4 py-2 text-sm"
             />
             <Segmented
               label="첨삭 여부"
@@ -163,7 +166,7 @@ function EntryRow({
       >
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{formatKo(entry.dateKey)}</span>
-          <span className="tabnum text-xs text-ink-4">{entry.wordCount} words</span>
+          <span className="tabnum text-xs text-ink-3">{entry.wordCount} words</span>
           <span className="ml-auto flex items-center gap-2">
             {entry.feedback ? (
               <Tag color={clean ? "var(--color-good)" : undefined}>
@@ -217,13 +220,13 @@ function EntryRow({
 
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <Link
-              href={`/history/entry?id=${entry.id}`}
+              href={entryHref(entry.id)}
               className="text-[11px] font-bold tracking-[0.16em] text-ink-3 uppercase underline-offset-4 hover:text-ink hover:underline"
             >
               {entry.feedback ? "교정 하나씩 보기 →" : "첨삭 받기 →"}
             </Link>
             {entry.feedback && (
-              <span className="tabnum text-[11px] text-ink-4">
+              <span className="tabnum text-[11px] text-ink-3">
                 {entry.feedback.level} · 문법 {entry.feedback.scores.grammar} · 어휘{" "}
                 {entry.feedback.scores.vocabulary}
               </span>

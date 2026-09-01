@@ -19,7 +19,6 @@ export function QuestPanel() {
 
   const quests = (profile.quests ?? []).filter((q) => q.type !== "once" || !q.done)
   const active = quests.filter((q) => !q.done)
-  const doneCount = quests.length - active.length
 
   return (
     <section aria-label="레벨과 퀘스트" className="space-y-4">
@@ -55,11 +54,9 @@ export function QuestPanel() {
 }
 
 function QuestRow({ quest }: { quest: Quest }) {
-  const pct = Math.min(100, Math.round((quest.progress / quest.target) * 100))
-
   return (
     <li className="flex items-baseline justify-between gap-3 border-b border-rule-2 py-2.5 last:border-b-0">
-      <span className={`text-[13px] leading-snug ${quest.done ? "text-ink-4 line-through" : ""}`}>
+      <span className={`text-[13px] leading-snug ${quest.done ? "text-ink-3 line-through" : ""}`}>
         {quest.title}
       </span>
       <span className="tabnum shrink-0 text-[11px] text-ink-3">

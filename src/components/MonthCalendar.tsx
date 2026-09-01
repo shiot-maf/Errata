@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import type { Entry } from "@/lib/types"
 import { toDateKey } from "@/lib/dates"
+import { entryHref } from "@/lib/basePath"
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
@@ -75,7 +76,7 @@ export function MonthCalendar({ entries }: { entries: Entry[] }) {
         {WEEKDAYS.map((d) => (
           <span
             key={d}
-            className="border-r border-b border-rule-2 bg-paper-2 py-1.5 font-mono text-[9px] tracking-[0.06em] text-ink-4"
+            className="border-r border-b border-rule-2 bg-paper-2 py-1.5 font-mono text-[9px] tracking-[0.06em] text-ink-3"
           >
             {d}
           </span>
@@ -129,7 +130,7 @@ function DayCell({
             ? "text-pen shadow-[inset_0_0_0_1px_var(--color-pen-mid)]"
             : isFuture
               ? "text-ink-4/40"
-              : "text-ink-4",
+              : "text-ink-3",
         isToday && !written ? "shadow-[inset_0_0_0_1px_var(--color-ink-4)]" : "",
       ].join(" ")}
     >
@@ -141,7 +142,7 @@ function DayCell({
 
   // 그날 일기가 하나면 바로 그 글로, 여러 편이면 목록으로 보낸다.
   const href =
-    entries.length === 1 ? `/history/entry?id=${entries[0].id}` : "/history"
+    entries.length === 1 ? entryHref(entries[0].id) : "/history"
 
   return (
     <Link
@@ -170,7 +171,7 @@ function NavButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex h-5 w-5 items-center justify-center font-mono text-ink-4 transition-colors hover:text-ink disabled:opacity-25"
+      className="flex h-5 w-5 items-center justify-center font-mono text-ink-3 transition-colors hover:text-ink disabled:opacity-25"
     >
       {children}
     </button>

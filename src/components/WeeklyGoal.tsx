@@ -9,13 +9,7 @@ import { Pencil } from "./icons"
  * 주간 목표. 스트릭이 "하루라도 빠지면 0"이라 부담스러운 데 비해,
  * 주 단위 목표는 하루 건너뛰어도 회복할 수 있어서 계속 쓰게 만든다.
  */
-export function WeeklyGoal({
-  done,
-  variant,
-}: {
-  done: number
-  variant: "sidebar" | "mobile"
-}) {
+export function WeeklyGoal({ done }: { done: number }) {
   const { profile, refreshProfile, user } = useAuth()
   const [editing, setEditing] = useState(false)
   const goal = profile?.weeklyGoal ?? 3
@@ -29,33 +23,6 @@ export function WeeklyGoal({
     await refreshProfile()
   }
 
-  if (variant === "mobile") {
-    return (
-      <div className="mb-6 flex items-center justify-between gap-4 border-y border-rule-2 py-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="label-sm">주간 목표</span>
-          <span className="mt-0.5 truncate text-sm font-medium">
-            {done}편 / 목표 {goal}편
-          </span>
-        </div>
-        <div
-          className="flex shrink-0 gap-1.5"
-          role="progressbar"
-          aria-valuenow={done}
-          aria-valuemin={0}
-          aria-valuemax={goal}
-        >
-          {Array.from({ length: goal }, (_, i) => (
-            <span
-              key={i}
-              className={`h-2.5 w-2.5 transition-colors ${i < done ? "bg-ink" : "bg-rule"}`}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <section aria-label="주간 목표" className="space-y-4">
       <div className="space-y-3">
@@ -66,10 +33,11 @@ export function WeeklyGoal({
             {editing ? (
               <select
                 autoFocus
+                aria-label="한 주에 쓸 일기 편수"
                 value={goal}
                 onChange={(e) => void changeGoal(Number(e.target.value))}
                 onBlur={() => setEditing(false)}
-                className="ml-1 border border-rule bg-transparent px-1 text-lg"
+                className="ml-1 border border-field bg-transparent px-1 text-lg"
               >
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                   <option key={n} value={n}>
@@ -98,9 +66,11 @@ export function WeeklyGoal({
         <div
           className="flex gap-1.5"
           role="progressbar"
+          aria-label="주간 목표 진행"
           aria-valuenow={done}
           aria-valuemin={0}
           aria-valuemax={goal}
+          aria-valuetext={`목표 ${goal}편 중 ${done}편`}
         >
           {Array.from({ length: goal }, (_, i) => (
             <span

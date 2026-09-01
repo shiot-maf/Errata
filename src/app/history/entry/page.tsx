@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useEffect, useReducer, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
@@ -8,7 +8,7 @@ import { Empty, ErrorNote, Loading, Pill } from "@/components/ui"
 import { FeedbackView } from "@/components/FeedbackView"
 import { ApiKeyPrompt } from "@/components/ApiKeyPrompt"
 import { deleteEntry, getEntry, listMistakes, saveFeedback } from "@/lib/firebase/db"
-import { FeedbackError, getApiKey, requestFeedback } from "@/lib/ai/client"
+import { FeedbackError, needsApiKey, requestFeedback } from "@/lib/ai/client"
 import { formatKoFull } from "@/lib/dates"
 import type { Entry, Mistake } from "@/lib/types"
 
@@ -32,21 +32,38 @@ function EntryDetail() {
   const [error, setError] = useState<string | null>(null)
   const [showOriginal, setShowOriginal] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!user || !id) return
-    const e = await getEntry(user.uid, id)
-    if (!e) {
-      setEntry("missing")
-      return
-    }
-    setEntry(e)
-    const all = await listMistakes(user.uid, 2000)
-    setMistakes(all.filter((m) => m.entryId === id))
-  }, [user, id])
+  /*
+   * 다시 읽기.
+   *
+   * 재첨삭이 끝나면 같은 일기를 다시 불러와야 한다. 예전에는 load()를
+   * useCallback으로 만들어 효과와 재첨삭이 함께 불렀는데, 그러면 효과가
+   * "언제 무엇을 불러오는지"를 콜백에게 넘겨버려서 취소 처리가 끼어들 자리가
+   * 없었다. 이제 불러오기는 효과 하나가 전담하고, 재첨삭은 reload()로
+   * "다시 읽어라"고만 말한다.
+   */
+  const [reloadToken, reload] = useReducer((n: number) => n + 1, 0)
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (!user || !id) return
+    let cancelled = false
+
+    void (async () => {
+      const e = await getEntry(user.uid, id)
+      if (cancelled) return
+      if (!e) {
+        setEntry("missing")
+        return
+      }
+      setEntry(e)
+
+      const all = await listMistakes(user.uid, 2000)
+      if (!cancelled) setMistakes(all.filter((m) => m.entryId === id))
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, id, reloadToken])
 
   if (!user) return null
   if (!id) {
@@ -80,7 +97,7 @@ function EntryDetail() {
   }
 
   const analyze = async () => {
-    if (!getApiKey()) {
+    if (needsApiKey()) {
       setNeedsKey(true)
       return
     }
@@ -96,7 +113,7 @@ function EntryDetail() {
         recentMistakes: history,
       })
       await saveFeedback(user.uid, id, entry.dateKey, feedback, model)
-      await load()
+      reload()
       await refreshProfile()
     } catch (e) {
       if (e instanceof FeedbackError && e.kind === "no_key") setNeedsKey(true)
@@ -157,7 +174,7 @@ function EntryDetail() {
             <Pill variant="outline" onClick={analyze} busy={analyzing}>
               {analyzing ? "다시 첨삭 중" : "다시 첨삭 받기"}
             </Pill>
-            <p className="mt-3 text-xs text-ink-4">
+            <p className="mt-3 text-xs text-ink-3">
               다시 첨삭하면 이 일기의 기존 실수 기록은 새 결과로 교체됩니다.
             </p>
           </div>

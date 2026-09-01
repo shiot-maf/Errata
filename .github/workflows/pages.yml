@@ -33,7 +33,10 @@ jobs:
         run: npm ci
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
 
       # Pages는 사이트를 리포 이름 아래에 서빙한다(/Errata). 이름을 하드코딩하지
       # 않고 리포 이름에서 받아오므로, 리포를 옮기거나 이름을 바꿔도 따라간다.

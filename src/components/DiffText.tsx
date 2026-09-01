@@ -29,7 +29,9 @@ export function DiffText({
               data-diff="remove"
               className="line-through decoration-2"
               style={{
-                color: "color-mix(in srgb, var(--color-bad) 70%, transparent)",
+                // 투명도로 흐리게 하면 본문 대비가 3:1 아래로 떨어진다.
+                // 지워진 표시는 취소선이 이미 하고 있으니 색은 온전히 쓴다.
+                color: "var(--color-bad)",
                 textDecorationColor: "currentColor",
               }}
             >
@@ -51,20 +53,5 @@ export function DiffText({
         )
       })}
     </span>
-  )
-}
-
-/** 짧은 구 단위 비교 — 교정 카드 안에서 쓴다. */
-export function InlineFix({ before, after }: { before: string; after: string }) {
-  return (
-    <p className="text-[15px] leading-relaxed">
-      <span className="line-through" style={{ color: "var(--color-bad)" }}>
-        {before}
-      </span>
-      <span className="mx-2 text-ink/30">→</span>
-      <span className="font-medium" style={{ color: "var(--color-good)" }}>
-        {after}
-      </span>
-    </p>
   )
 }

@@ -5,6 +5,8 @@ import { buildSystemPrompt, buildUserMessage } from "./prompt"
 import type { Mistake, RawFeedback } from "../types"
 import { CATEGORY_SLUGS, SEVERITIES, type Severity } from "../taxonomy"
 import { demoFeedback, isDemo } from "../demo/store"
+import { STORAGE_KEYS } from "../storageKeys"
+import { notifyStoredValueChanged } from "../browserStore"
 
 /**
  * BYO(Bring Your Own) 키 방식.
@@ -17,22 +19,46 @@ import { demoFeedback, isDemo } from "../demo/store"
  * /api/feedback 호출로 갈아끼우면 된다. 나머지 코드는 손댈 게 없다.
  */
 
-export const DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+/**
+ * 모델.
+ *
+ * 날짜 접미사가 붙지 않은 id를 쓴다 — 이쪽이 현재 세대를 가리킨다.
+ * 첨삭은 하루 한 번, 200단어 남짓을 보는 일이라 요청 수가 적다. 그래서
+ * 기본값을 가장 싼 쪽이 아니라 가장 꼼꼼한 쪽에 둔다. 문법을 잘못 짚으면
+ * 그게 그대로 통계에 쌓여서 없는 약점을 만들어내기 때문이다.
+ */
+export const DEFAULT_MODEL = "claude-opus-5"
 
 export const MODELS = [
-  { id: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5 — 균형 (추천)" },
-  { id: "claude-opus-4-1-20250805", label: "Opus 4.1 — 가장 꼼꼼함" },
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5 — 빠르고 저렴" },
+  { id: "claude-opus-5", label: "Opus 5 — 가장 꼼꼼함 (추천)" },
+  { id: "claude-sonnet-5", label: "Sonnet 5 — 균형" },
+  { id: "claude-haiku-4-5", label: "Haiku 4.5 — 빠르고 저렴" },
 ]
 
-const KEY_STORAGE = "echodiary.anthropicKey"
-const MODEL_STORAGE = "echodiary.model"
-const REMEMBER_STORAGE = "echodiary.rememberKey"
+const KEY_STORAGE = STORAGE_KEYS.apiKey
+const MODEL_STORAGE = STORAGE_KEYS.model
+const REMEMBER_STORAGE = STORAGE_KEYS.rememberKey
 
 // ── 키 보관 ───────────────────────────────────────────────────────
 // 기본값은 sessionStorage(탭 닫으면 사라짐). 사용자가 "이 기기에서 기억"을
 // 켜면 localStorage로 옮긴다. 본인 기기에서의 편의와 안전 사이 선택은
 // 사용자가 하게 둔다.
+
+/** 키가 들어 있는지만 알려준다 — 화면은 값 자체를 다시 보여줄 일이 없다. */
+export function hasApiKey(): boolean {
+  return getApiKey() !== null
+}
+
+/**
+ * 첨삭을 하려면 키를 먼저 받아야 하는 상태인가.
+ *
+ * 데모 모드는 모델을 부르지 않으므로 키가 필요 없다. 화면 쪽에서
+ * `!getApiKey()`만 보고 판단하면, 데모로 둘러보는 사람이 "첨삭 실행"을
+ * 눌렀을 때 있지도 않은 키를 내놓으라는 화면을 만난다.
+ */
+export function needsApiKey(): boolean {
+  return !isDemo() && !hasApiKey()
+}
 
 export function getApiKey(): string | null {
   if (typeof window === "undefined") return null
@@ -49,12 +75,31 @@ export function setApiKey(key: string, remember: boolean): void {
   const store = remember ? window.localStorage : window.sessionStorage
   store.setItem(KEY_STORAGE, key.trim())
   window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
+  notifyStoredValueChanged()
 }
 
 export function clearApiKey(): void {
   if (typeof window === "undefined") return
   window.sessionStorage.removeItem(KEY_STORAGE)
   window.localStorage.removeItem(KEY_STORAGE)
+  notifyStoredValueChanged()
+}
+
+/**
+ * "이 기기에서 기억"을 켜고 끈다.
+ * 예전에는 이 체크박스가 저장 버튼을 누를 때까지 아무 일도 하지 않아서,
+ * 이미 키를 넣어둔 사람이 껐다 켜도 키는 원래 자리에 그대로 있었다.
+ * 이제 켜는 즉시 키를 옮긴다.
+ */
+export function rememberKeyOnThisDevice(remember: boolean): void {
+  if (typeof window === "undefined") return
+  const key = getApiKey()
+  if (key) {
+    setApiKey(key, remember)
+    return
+  }
+  window.localStorage.setItem(REMEMBER_STORAGE, remember ? "1" : "0")
+  notifyStoredValueChanged()
 }
 
 export function isKeyRemembered(): boolean {
@@ -64,12 +109,16 @@ export function isKeyRemembered(): boolean {
 
 export function getModel(): string {
   if (typeof window === "undefined") return DEFAULT_MODEL
-  return window.localStorage.getItem(MODEL_STORAGE) ?? DEFAULT_MODEL
+  const stored = window.localStorage.getItem(MODEL_STORAGE)
+  // 예전에 고른 모델이 목록에서 빠졌을 수 있다(세대 교체). 그대로 보내면
+  // 첨삭이 404로 죽으므로, 모르는 값이면 기본값으로 돌아간다.
+  return MODELS.some((m) => m.id === stored) ? stored! : DEFAULT_MODEL
 }
 
 export function setModel(model: string): void {
   if (typeof window === "undefined") return
   window.localStorage.setItem(MODEL_STORAGE, model)
+  notifyStoredValueChanged()
 }
 
 // ── 호출 ──────────────────────────────────────────────────────────
@@ -123,7 +172,10 @@ export async function requestFeedback(args: {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4000,
+        // 교정본 전체 + 교정 항목 + 한국어 설명이 한 번에 나온다. 게다가
+        // 요즘 모델은 생각하는 토큰도 이 한도를 함께 쓴다. 4000으로는 긴
+        // 일기에서 결과가 중간에 잘린다.
+        max_tokens: 16000,
         system: buildSystemPrompt(args.recentMistakes),
         messages: [{ role: "user", content: buildUserMessage(args.text, args.dateKey) }],
         tools: [FEEDBACK_TOOL],
@@ -152,12 +204,22 @@ export async function requestFeedback(args: {
     )
   }
 
-  const data = (await res.json()) as { content?: AnthropicContentBlock[] }
+  const data = (await res.json()) as {
+    content?: AnthropicContentBlock[]
+    stop_reason?: string
+  }
   const block = data.content?.find(
     (c) => c.type === "tool_use" && c.name === FEEDBACK_TOOL.name,
   )
   if (!block?.input) {
-    throw new FeedbackError("첨삭 결과를 읽지 못했어요. 다시 시도해주세요.", "malformed")
+    // 한도에 걸려 잘린 것이면 다시 눌러도 같은 자리에서 잘린다.
+    // 무엇을 해야 하는지 말해주는 편이 낫다.
+    throw new FeedbackError(
+      data.stop_reason === "max_tokens"
+        ? "일기가 길어서 첨삭이 중간에 잘렸어요. 조금 나눠서 써보세요."
+        : "첨삭 결과를 읽지 못했어요. 다시 시도해주세요.",
+      "malformed",
+    )
   }
 
   return { feedback: normalize(block.input, args.text), model }

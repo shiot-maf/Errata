@@ -13,7 +13,9 @@ import type { Entry, Mistake, RawFeedback, SavedItem, UserProfile } from "../typ
  * 나가려면 ?demo=0 이거나 세션을 닫으면 된다.
  */
 
-const FLAG = "echodiary.demo"
+import { STORAGE_KEYS } from "../storageKeys"
+
+const FLAG = STORAGE_KEYS.demo
 
 export function isDemo(): boolean {
   if (typeof window === "undefined") return false
@@ -28,6 +30,10 @@ export function isDemo(): boolean {
   }
   return window.sessionStorage.getItem(FLAG) === "1"
 }
+
+/** Date.now()만으로 id를 만들면 같은 밀리초에 두 번 저장할 때 겹친다. */
+let seq = 0
+const nextId = (prefix: string) => `${prefix}-${Date.now()}-${seq++}`
 
 /** 데모 중 만들어진 변경은 이 세션 안에서만 유지된다. */
 let state: {
@@ -76,7 +82,7 @@ export const demoStore = {
         return found.id
       }
     }
-    const id = `demo-new-${Date.now()}`
+    const id = nextId("demo-new")
     s.entries.unshift({
       id,
       dateKey: input.dateKey,
@@ -133,16 +139,18 @@ export const demoStore = {
     }
   },
 
-  markReviewed(id: string, correct: boolean) {
-    const m = store().mistakes.find((x) => x.id === id)
-    if (!m) return
-    m.reviewCount += 1
-    m.lastReviewedAt = Date.now()
-    m.lastReviewCorrect = correct
+  recordReview(source: "mistake" | "saved", id: string, patch: Partial<Mistake>) {
+    const s = store()
+    const target =
+      source === "saved"
+        ? s.saved.find((x) => x.id === id)
+        : s.mistakes.find((x) => x.id === id)
+    if (!target) return
+    Object.assign(target, patch)
   },
 
   addSaved(item: Omit<SavedItem, "id" | "createdAt">): string {
-    const id = `demo-saved-${Date.now()}`
+    const id = nextId("demo-saved")
     store().saved.unshift({ ...item, id, createdAt: Date.now() })
     return id
   },

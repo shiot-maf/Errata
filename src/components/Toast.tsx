@@ -33,8 +33,9 @@ export function ToastHost() {
     return () => window.removeEventListener(GAME_EVENT, onNotice)
   }, [])
 
-  if (items.length === 0) return null
-
+  // 알림이 있을 때만 이 컨테이너를 만들면 안 된다. 스크린리더는 이미
+  // 문서에 있던 live region의 "변화"를 읽는 것이라, 내용과 함께 나타난
+  // 영역은 대개 읽히지 않는다. 빈 채로 항상 자리를 지킨다.
   return (
     <div
       aria-live="polite"

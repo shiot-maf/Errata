@@ -1,8 +1,8 @@
 "use client"
 
-import { CATEGORY_GROUPS, categoryColor } from "@/lib/taxonomy"
+import { CATEGORY_GROUPS } from "@/lib/taxonomy"
 import type { CategoryStat, GroupStat } from "@/lib/analysis/aggregate"
-import { formatKo } from "@/lib/dates"
+import { formatKo, fromDateKey } from "@/lib/dates"
 
 /** 카테고리별 실수 빈도 가로 막대 — 대시보드의 주인공. */
 export function CategoryBars({
@@ -22,17 +22,12 @@ export function CategoryBars({
       {stats.map((s, i) => {
         const pct = (s.count / max) * 100
         const hot = i === 0
-        return (
-          <li
-            key={s.slug}
-            onClick={onSelect ? () => onSelect(s.slug) : undefined}
-            className={`border-b border-rule-2 py-3 last:border-b-0 ${
-              onSelect ? "cursor-pointer" : ""
-            } ${selected === s.slug ? "bg-paper-2" : ""}`}
-          >
+
+        const row = (
+          <>
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-medium">{s.ko}</span>
-              <span className="font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase">
+              <span className="font-mono text-[9px] tracking-[0.08em] text-ink-3 uppercase">
                 {CATEGORY_GROUPS[s.group].ko}
               </span>
               <span className="tabnum ml-auto text-[15px] font-medium">{s.count}</span>
@@ -52,11 +47,45 @@ export function CategoryBars({
                 style={{ left: `${pct}%`, background: hot ? "var(--color-pen)" : "var(--color-ink-2)" }}
               />
             </div>
+          </>
+        )
+
+        return (
+          <li
+            key={s.slug}
+            className={`border-b border-rule-2 last:border-b-0 ${
+              selected === s.slug ? "bg-paper-2" : ""
+            }`}
+          >
+            {/* 누를 수 있는 줄은 button이어야 한다. div에 onClick만 달면
+                키보드로는 아예 닿지 않는다. */}
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => onSelect(s.slug)}
+                aria-pressed={selected === s.slug}
+                aria-label={`${s.ko} ${s.count}회${trendLabel(s.trend)} — 사례 보기`}
+                className="block w-full px-1 py-3 text-left"
+              >
+                <div aria-hidden>{row}</div>
+              </button>
+            ) : (
+              <div className="px-1 py-3">{row}</div>
+            )}
           </li>
         )
       })}
     </ul>
   )
+}
+
+/** 추이를 말로 옮긴 것 — 화살표만으로는 읽어주지 못한다. */
+function trendLabel(trend: number): string {
+  if (trend === 0) return ""
+  const amount = Math.abs(trend).toFixed(1)
+  return trend < 0
+    ? `, 100단어당 ${amount}회 줄어드는 중`
+    : `, 100단어당 ${amount}회 늘어나는 중`
 }
 
 /** 최근 30일 vs 이전 30일, 100단어당 실수 비율 변화. 음수면 개선. */
@@ -68,7 +97,7 @@ function TrendChip({ trend }: { trend: number }) {
       className={`tabnum text-[11px] font-medium ${better ? "text-good" : "text-pen"}`}
       title="최근 30일 vs 그 이전 30일 · 100단어당 실수"
     >
-      {better ? "▼" : "▲"}
+      <span aria-hidden>{better ? "▼" : "▲"}</span>
       {Math.abs(trend).toFixed(1)}
     </span>
   )
@@ -80,7 +109,8 @@ export function GroupSplit({ groups }: { groups: GroupStat[] }) {
   if (total === 0) return null
   return (
     <div>
-      <div className="flex h-2">
+      {/* 띠는 아래 목록을 그림으로 옮긴 것뿐이다. 두 번 읽어줄 이유가 없다. */}
+      <div className="flex h-2" aria-hidden>
         {groups
           .filter((g) => g.count > 0)
           .map((g) => (
@@ -98,7 +128,7 @@ export function GroupSplit({ groups }: { groups: GroupStat[] }) {
             <li key={g.group} className="flex items-center gap-1.5">
               <span className="h-2 w-2" style={{ background: g.color }} aria-hidden />
               <span>{g.ko}</span>
-              <span className="tabular-nums text-ink-4">
+              <span className="tabular-nums text-ink-3">
                 {Math.round(g.share * 100)}%
               </span>
             </li>
@@ -117,7 +147,11 @@ export function ActivityHeatmap({
   const maxWords = Math.max(1, ...activity.map((a) => a.words))
 
   // 주 단위 열로 쌓는다. 첫 열의 앞부분은 빈 칸으로 채워 요일을 맞춘다.
-  const firstDay = new Date(activity[0]?.dateKey ?? Date.now()).getDay()
+  //
+  // new Date("2026-08-31")은 UTC 자정으로 읽힌다. UTC보다 뒤인 시간대에서는
+  // getDay()가 하루 전 요일을 돌려주고, 잔디 전체가 한 칸씩 밀린다.
+  // dateKey는 로컬 날짜이므로 로컬로 읽는 fromDateKey를 쓴다.
+  const firstDay = activity[0] ? fromDateKey(activity[0].dateKey).getDay() : 0
   const cells: (typeof activity)[number][] = [
     ...Array.from({ length: firstDay }, () => null as never),
     ...activity,
@@ -125,9 +159,20 @@ export function ActivityHeatmap({
   const weeks: (typeof activity)[number][][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
+  // 칸 하나하나는 title 속성으로만 설명돼 있어서 읽어주지도, 키보드로 닿지도
+  // 않는다. 잔디가 말하려는 건 결국 "얼마나 꾸준했나"이므로 그걸 한 줄로 준다.
+  const activeDays = activity.filter((a) => a.entries > 0).length
+  const totalWords = activity.reduce((sum, a) => sum + a.words, 0)
+  const summary = `최근 ${activity.length}일 중 ${activeDays}일 작성, 모두 ${totalWords.toLocaleString()}단어`
+
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="flex gap-[3px]">
+    <div
+      className="overflow-x-auto pb-1"
+      role="img"
+      aria-label={summary}
+      tabIndex={0}
+    >
+      <div className="flex gap-[3px]" aria-hidden>
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-[3px]">
             {Array.from({ length: 7 }, (_, di) => {

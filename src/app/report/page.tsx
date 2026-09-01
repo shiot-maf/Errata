@@ -8,18 +8,36 @@ import { Empty, Loading, Pill, SectionTitle, Segmented, Stat, Tag } from "@/comp
 import { ActivityHeatmap, CategoryBars, GroupSplit, Sparkline } from "@/components/charts"
 import { CorrectionCard } from "@/components/CorrectionCard"
 import { listEntries, listMistakes } from "@/lib/firebase/db"
-import { buildOverview } from "@/lib/analysis/aggregate"
+import { ERROR_RATE_TREND_MIN_ENTRIES, buildOverview } from "@/lib/analysis/aggregate"
 import { CATEGORY_GROUPS, categoryColor, getCategory } from "@/lib/taxonomy"
 import { formatKo } from "@/lib/dates"
 import type { Entry, Mistake } from "@/lib/types"
 
 type Range = 30 | 90 | 0
 
+/**
+ * 기간 필터.
+ *
+ * 자를 시각(cutoff)을 렌더 중에 Date.now()로 구하면 렌더마다 값이 달라져서,
+ * 같은 화면이 다시 그려질 때 경계에 걸친 일기가 들락거린다. 기간을 고르는
+ * 순간을 기준으로 한 번만 계산하고 그 값을 들고 다닌다.
+ */
+interface Span {
+  days: Range
+  /** 0이면 전체 — 자르지 않는다 */
+  cutoff: number
+}
+
+const spanFor = (days: Range): Span => ({
+  days,
+  cutoff: days === 0 ? 0 : Date.now() - days * 86_400_000,
+})
+
 export default function ReportPage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState<Entry[] | null>(null)
   const [mistakes, setMistakes] = useState<Mistake[]>([])
-  const [range, setRange] = useState<Range>(0)
+  const [span, setSpan] = useState<Span>({ days: 0, cutoff: 0 })
   const [focus, setFocus] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,13 +52,12 @@ export default function ReportPage() {
 
   const scoped = useMemo(() => {
     if (!entries) return null
-    if (range === 0) return { entries, mistakes }
-    const cutoff = Date.now() - range * 86_400_000
+    if (span.cutoff === 0) return { entries, mistakes }
     return {
-      entries: entries.filter((e) => e.createdAt >= cutoff),
-      mistakes: mistakes.filter((m) => m.createdAt >= cutoff),
+      entries: entries.filter((e) => e.createdAt >= span.cutoff),
+      mistakes: mistakes.filter((m) => m.createdAt >= span.cutoff),
     }
-  }, [entries, mistakes, range])
+  }, [entries, mistakes, span])
 
   const overview = useMemo(
     () => (scoped ? buildOverview(scoped.entries, scoped.mistakes) : null),
@@ -96,8 +113,8 @@ export default function ReportPage() {
         action={
           <Segmented
             label="기간"
-            value={range}
-            onChange={setRange}
+            value={span.days}
+            onChange={(days) => setSpan(spanFor(days))}
             options={[
               { value: 30 as Range, label: "30일" },
               { value: 90 as Range, label: "90일" },
@@ -131,7 +148,7 @@ export default function ReportPage() {
           value={overview.errorRate.toFixed(1)}
           sub={
             overview.errorRateTrend === null
-              ? "추이는 일기 4편부터"
+              ? `추이는 첨삭받은 일기 ${ERROR_RATE_TREND_MIN_ENTRIES}편부터`
               : overview.errorRateTrend < 0
                 ? `최근 5편 ${Math.abs(overview.errorRateTrend).toFixed(1)} 감소`
                 : `최근 5편 ${overview.errorRateTrend.toFixed(1)} 증가`
@@ -158,7 +175,7 @@ export default function ReportPage() {
           <SectionTitle>100단어당 실수 추이</SectionTitle>
           <div>
             <Sparkline points={errorRateSeries} />
-            <div className="tabnum mt-2 flex justify-between text-[11px] text-ink-4">
+            <div className="tabnum mt-2 flex justify-between text-[11px] text-ink-3">
               <span>{formatKo(errorRateSeries[0].label)}</span>
               <span>내려갈수록 좋아지는 중</span>
               <span>{formatKo(errorRateSeries[errorRateSeries.length - 1].label)}</span>
@@ -248,7 +265,7 @@ export default function ReportPage() {
                 <div className="mb-2.5 flex flex-wrap items-center gap-2">
                   <Tag color={categoryColor(r.category)}>{getCategory(r.category).ko}</Tag>
                   <Tag color="var(--color-pen)">{r.count}번 반복</Tag>
-                  <span className="ml-auto text-[11px] text-ink-4">
+                  <span className="ml-auto text-[11px] text-ink-3">
                     마지막 {formatKo(r.lastSeen)}
                   </span>
                 </div>
@@ -274,7 +291,7 @@ export default function ReportPage() {
         <SectionTitle>작성 기록</SectionTitle>
         <div>
           <ActivityHeatmap activity={overview.activity} />
-          <p className="mt-4 text-xs text-ink-4">
+          <p className="mt-4 text-xs text-ink-3">
             진할수록 그날 많이 썼어요. 최근 {overview.activity.length}일.
           </p>
         </div>

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { onAuthChange } from "@/lib/firebase/auth"
 import { ensureProfile } from "@/lib/firebase/db"
 import { isDemo } from "@/lib/demo/store"
+import { useBrowserValue } from "@/lib/browserStore"
 import type { UserProfile } from "@/lib/types"
 
 /**
@@ -42,49 +43,57 @@ const Ctx = createContext<AuthValue>({
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [demo, setDemo] = useState(false)
+  // 데모 여부는 주소(?demo=1)와 sessionStorage에 있다. 정적 HTML을 구울 때는
+  // 알 수 없는 값이라 브라우저에서 읽는다.
+  const demo = useBrowserValue(isDemo, false)
+
+  const [authUser, setAuthUser] = useState<AppUser | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+  const [loadedProfile, setLoadedProfile] = useState<UserProfile | null>(null)
+
+  // 데모 사용자는 상태가 아니라 계산해서 낸다. 효과 안에서 setState로 채우면
+  // 렌더가 한 번 더 돌고, 로그아웃 상태가 잠깐 스쳐 지나간다.
+  const user = demo ? DEMO_USER : authUser
+  const loading = demo ? false : !authReady
+  const profile = user ? loadedProfile : null
 
   useEffect(() => {
     // 데모 모드에서는 Firebase를 아예 건드리지 않는다.
-    if (isDemo()) {
-      setDemo(true)
-      setUser(DEMO_USER)
-      void ensureProfile(DEMO_USER).then(setProfile)
-      setLoading(false)
-      return
-    }
+    if (demo) return
 
-    return onAuthChange(async (u) => {
-      const next: AppUser | null = u
-        ? {
-            uid: u.uid,
-            displayName: u.displayName,
-            email: u.email,
-            photoURL: u.photoURL,
-          }
-        : null
-      setUser(next)
-
-      if (next) {
-        try {
-          setProfile(await ensureProfile(next))
-        } catch (err) {
-          console.error("프로필을 불러오지 못했습니다:", err)
-          setProfile(null)
-        }
-      } else {
-        setProfile(null)
-      }
-      setLoading(false)
+    return onAuthChange((u) => {
+      setAuthUser(
+        u
+          ? {
+              uid: u.uid,
+              displayName: u.displayName,
+              email: u.email,
+              photoURL: u.photoURL,
+            }
+          : null,
+      )
+      setAuthReady(true)
     })
-  }, [])
+  }, [demo])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ensureProfile(user)
+      .then((p) => {
+        if (!cancelled) setLoadedProfile(p)
+      })
+      .catch((err) => {
+        console.error("프로필을 불러오지 못했습니다:", err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const refreshProfile = async () => {
     if (!user) return
-    setProfile(await ensureProfile(user))
+    setLoadedProfile(await ensureProfile(user))
   }
 
   return (
