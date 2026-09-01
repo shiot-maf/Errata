@@ -1,6 +1,6 @@
-import type { Mistake } from "../types"
 import { daysBetween, toDateKey } from "../dates"
 import { GRADUATED_BOX } from "./schedule"
+import type { ReviewItem } from "./item"
 
 /**
  * 개념 카드의 아래쪽 절반 — "너는 이 안에서도 특히 여기서 넘어진다".
@@ -27,20 +27,22 @@ export interface CategoryInsight {
 }
 
 export function categoryInsight(
-  mistakes: Mistake[],
+  items: ReviewItem[],
   category: string,
   today = toDateKey(),
 ): CategoryInsight {
-  const mine = mistakes.filter((m) => m.category === category)
+  // "여기서 몇 번 넘어졌나"는 실수를 세는 말이다. 담아둔 표현은 틀린 적이
+  // 없으므로 이 셈에 들어가면 안 된다.
+  const mine = items.filter((m) => m.source === "mistake" && m.category === category)
 
   const recent = mine.filter((m) => daysBetween(m.dateKey, today) <= 30).length
 
   const groups = new Map<string, { original: string; corrected: string; count: number }>()
   for (const m of mine) {
-    const key = normalize(m.original)
+    const key = normalize(m.front)
     const found = groups.get(key)
     if (found) found.count++
-    else groups.set(key, { original: m.original, corrected: m.corrected, count: 1 })
+    else groups.set(key, { original: m.front, corrected: m.back, count: 1 })
   }
 
   const repeated = [...groups.values()]
@@ -109,11 +111,14 @@ function normalize(s: string): string {
  * 없으면 복습만 열심히 하고 글에서는 계속 틀리는 사람도 칭호를 받는다.
  */
 export function masteredCategories(
-  mistakes: Mistake[],
+  items: ReviewItem[],
   today = toDateKey(),
 ): string[] {
-  const byCategory = new Map<string, Mistake[]>()
-  for (const m of mistakes) {
+  // 칭호는 개념을 뗀 것에 준다. 담아둔 표현을 아무리 졸업시켜도
+  // "전치사 졸업생"이 되지는 않는다.
+  const byCategory = new Map<string, ReviewItem[]>()
+  for (const m of items) {
+    if (m.source !== "mistake") continue
     byCategory.set(m.category, [...(byCategory.get(m.category) ?? []), m])
   }
 

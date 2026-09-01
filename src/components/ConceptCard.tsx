@@ -3,7 +3,7 @@
 import { getCategory, categoryColor, CATEGORY_GROUPS } from "@/lib/taxonomy"
 import { categoryInsight } from "@/lib/review/insight"
 import { Tag } from "./ui"
-import type { Mistake } from "@/lib/types"
+import type { ReviewItem } from "@/lib/review/item"
 
 /**
  * 개념 카드 — 복습 묶음이 시작될 때 한 번 펴는 지면.
@@ -14,16 +14,16 @@ import type { Mistake } from "@/lib/types"
  */
 export function ConceptCard({
   slug,
-  mistakes,
+  items,
   count,
 }: {
   slug: string
-  mistakes: Mistake[]
+  items: ReviewItem[]
   /** 이번 묶음에서 풀 문제 수 */
   count?: number
 }) {
   const cat = getCategory(slug)
-  const insight = categoryInsight(mistakes, slug)
+  const insight = categoryInsight(items, slug)
   const group = CATEGORY_GROUPS[cat.group]
 
   return (

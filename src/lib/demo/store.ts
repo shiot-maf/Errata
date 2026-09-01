@@ -139,10 +139,14 @@ export const demoStore = {
     }
   },
 
-  recordReview(id: string, patch: Partial<Mistake>) {
-    const m = store().mistakes.find((x) => x.id === id)
-    if (!m) return
-    Object.assign(m, patch)
+  recordReview(source: "mistake" | "saved", id: string, patch: Partial<Mistake>) {
+    const s = store()
+    const target =
+      source === "saved"
+        ? s.saved.find((x) => x.id === id)
+        : s.mistakes.find((x) => x.id === id)
+    if (!target) return
+    Object.assign(target, patch)
   },
 
   addSaved(item: Omit<SavedItem, "id" | "createdAt">): string {

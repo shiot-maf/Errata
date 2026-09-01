@@ -138,4 +138,14 @@ export interface SavedItem {
   note: string
   category?: string
   createdAt: number
+
+  /**
+   * 복습 일정. 실수와 같은 상자를 쓴다 — 담아둔 표현도 잊어버리기는 마찬가지다.
+   * (정답 짝이 없는 selection은 문제로 만들 수 없어 일정이 붙지 않는다.)
+   */
+  box?: number
+  dueAt?: number
+  reviewCount?: number
+  lastReviewedAt?: number
+  lastReviewCorrect?: boolean
 }

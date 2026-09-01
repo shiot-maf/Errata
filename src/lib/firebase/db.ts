@@ -14,10 +14,11 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore"
 import { db } from "./client"
-import type { Entry, Feedback, Mistake, RawFeedback, UserProfile } from "../types"
+import type { Entry, Feedback, Mistake, RawFeedback, SavedItem, UserProfile } from "../types"
 import type { Severity } from "../taxonomy"
 import { nextStreak, toDateKey } from "../dates"
 import { nextSchedule, type Grade, type Scheduled } from "../review/schedule"
+import type { ReviewItem } from "../review/item"
 import { demoStore, isDemo } from "../demo/store"
 import {
   applyExp,
@@ -45,6 +46,7 @@ const userRef = (uid: string) => doc(db, "diaryUsers", uid)
 const entriesRef = (uid: string) => collection(db, "diaryUsers", uid, "entries")
 const entryRef = (uid: string, id: string) => doc(db, "diaryUsers", uid, "entries", id)
 const mistakesRef = (uid: string) => collection(db, "diaryUsers", uid, "mistakes")
+const savedRef = (uid: string) => collection(db, "diaryUsers", uid, "saved")
 
 // ── 프로필 ────────────────────────────────────────────────────────
 
@@ -286,23 +288,28 @@ export async function listMistakes(uid: string, max = 1000): Promise<Mistake[]> 
  *
  * 맞았는지만이 아니라 "다음에 언제 다시 물을지"까지 여기서 정해 붙인다.
  * 일정이 문서에 붙어 있어야 다음에 열었을 때 밀린 것을 셀 수 있다.
+ *
+ * 실수와 담아둔 표현은 다른 컬렉션에 살지만 일정은 같은 상자를 쓴다.
+ * 어느 쪽에 쓸지만 여기서 갈라준다.
  */
 export async function recordReview(
   uid: string,
-  mistake: Mistake,
+  item: ReviewItem,
   grade: Grade,
 ): Promise<Scheduled> {
-  const next = nextSchedule(mistake.box ?? 0, grade)
+  const next = nextSchedule(item.box ?? 0, grade)
   const patch = {
-    reviewCount: (mistake.reviewCount ?? 0) + 1,
+    reviewCount: (item.reviewCount ?? 0) + 1,
     lastReviewedAt: Date.now(),
     lastReviewCorrect: grade !== "wrong",
     box: next.box,
     dueAt: next.dueAt,
   }
 
-  if (isDemo()) demoStore.recordReview(mistake.id, patch)
-  else await updateDoc(doc(mistakesRef(uid), mistake.id), patch)
+  const ref = item.source === "saved" ? savedRef : mistakesRef
+
+  if (isDemo()) demoStore.recordReview(item.source, item.id, patch)
+  else await updateDoc(doc(ref(uid), item.id), patch)
 
   return next
 }
@@ -316,10 +323,6 @@ export { toDateKey }
  * mistakes에 플래그를 다는 대신 별도 컬렉션에 복사하는 이유는,
  * 일기를 지우거나 재첨삭해도 저장해둔 표현은 남아야 하기 때문이다.
  */
-
-import type { SavedItem } from "../types"
-
-const savedRef = (uid: string) => collection(db, "diaryUsers", uid, "saved")
 
 export async function listSaved(uid: string, max = 500): Promise<SavedItem[]> {
   if (isDemo()) return demoStore.saved().slice(0, max)
@@ -337,6 +340,12 @@ export async function listSaved(uid: string, max = 500): Promise<SavedItem[]> {
       note: data.note ?? "",
       category: data.category,
       createdAt: data.createdAt ?? 0,
+      box: data.box ?? 0,
+      // 일정이 없는 건 이 기능 전에 담아둔 것이다. 지금 만기로 본다.
+      dueAt: data.dueAt ?? 0,
+      reviewCount: data.reviewCount ?? 0,
+      lastReviewedAt: data.lastReviewedAt,
+      lastReviewCorrect: data.lastReviewCorrect,
     } satisfies SavedItem
   })
 }

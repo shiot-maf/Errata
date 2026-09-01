@@ -212,7 +212,27 @@ export const CATEGORIES: CategoryDef[] = [
 
 export const CATEGORY_SLUGS = CATEGORIES.map((c) => c.slug)
 
-const BY_SLUG = new Map(CATEGORIES.map((c) => [c.slug, c]))
+/**
+ * 택소노미 밖의 자리 — 저장함에 담아둔 표현들이 여기로 모인다.
+ *
+ * CATEGORIES에는 넣지 않는다. 그 목록은 그대로 AI에게 주는 tool schema의
+ * enum이 되기 때문에, 여기 끼워 넣으면 모델이 실수를 "담아둔 표현"으로
+ * 분류할 수 있게 된다. 이름을 붙일 자리는 필요하되 분류지에는 없어야 한다.
+ */
+export const EXPRESSION_CATEGORY: CategoryDef = {
+  slug: "saved-phrase",
+  group: "vocabulary",
+  ko: "담아둔 표현",
+  en: "Saved expressions",
+  hint: "저장함에 담아둔 표현 — AI가 고르는 값이 아니다",
+  concept:
+    "여기 있는 것들은 틀린 게 아니다. 뜻은 통하지만 더 자연스럽게 말할 수 있어서 " +
+    "첨삭이 따로 짚어줬거나, 읽다가 마음에 들어 직접 담아둔 표현이다. " +
+    "실수는 안 하려고 외우지만 이쪽은 쓰려고 외운다 — 떠올릴 수 있어야 실제로 " +
+    "글에 나온다. 담아만 두고 다시 안 보면 그냥 목록일 뿐이라 여기서 같이 묻는다.",
+}
+
+const BY_SLUG = new Map([...CATEGORIES, EXPRESSION_CATEGORY].map((c) => [c.slug, c]))
 
 const UNKNOWN: CategoryDef = {
   slug: "other",

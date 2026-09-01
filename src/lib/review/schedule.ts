@@ -1,6 +1,6 @@
-import type { Mistake } from "../types"
 import { SEVERITY_WEIGHT } from "../taxonomy"
 import { answersMatch, diffWords } from "../analysis/diff"
+import { EXPRESSION_SLUG, type ReviewItem } from "./item"
 
 /**
  * 복습 주기 — 망각곡선.
@@ -41,23 +41,23 @@ export function questionKind(box: number): QuestionKind {
   return "recall"
 }
 
-export function boxOf(mistake: Mistake): number {
-  return Math.min(GRADUATED_BOX, Math.max(0, mistake.box ?? 0))
+export function boxOf(item: ReviewItem): number {
+  return Math.min(GRADUATED_BOX, Math.max(0, item.box ?? 0))
 }
 
-export function isGraduated(mistake: Mistake): boolean {
-  return boxOf(mistake) >= GRADUATED_BOX
+export function isGraduated(item: ReviewItem): boolean {
+  return boxOf(item) >= GRADUATED_BOX
 }
 
 /** 아직 한 번도 안 물어본 것 */
-export function isNew(mistake: Mistake): boolean {
-  return (mistake.reviewCount ?? 0) === 0
+export function isNew(item: ReviewItem): boolean {
+  return (item.reviewCount ?? 0) === 0
 }
 
-export function isDue(mistake: Mistake, now = Date.now()): boolean {
-  if (isGraduated(mistake)) return false
+export function isDue(item: ReviewItem, now = Date.now()): boolean {
+  if (isGraduated(item)) return false
   // dueAt이 없는 건 이 기능이 생기기 전에 쌓인 것들이다. 지금 만기로 본다.
-  return (mistake.dueAt ?? 0) <= now
+  return (item.dueAt ?? 0) <= now
 }
 
 /**
@@ -118,9 +118,9 @@ export function daysUntil(dueAt: number, now = Date.now()): number {
 // ── 오늘의 덱 ──────────────────────────────────────────────────────
 
 export interface ReviewBlock {
-  /** 택소노미 slug */
+  /** 택소노미 slug, 또는 담아둔 표현 자리 */
   category: string
-  mistakes: Mistake[]
+  items: ReviewItem[]
 }
 
 export interface Deck {
@@ -135,6 +135,14 @@ export interface Deck {
 export const DAILY_LIMIT = 20
 /** 한 개념을 연달아 이만큼까지만 — 그 이상은 지겹다. */
 const PER_CATEGORY = 5
+/**
+ * 담아둔 표현에 떼어주는 자리.
+ *
+ * 표현은 틀린 적이 없어서 심각도가 가장 낮고, 그래서 순서를 심각도로만 매기면
+ * 밀린 실수가 몇 개만 있어도 영영 차례가 오지 않는다. 담아두기만 하고 다시 안
+ * 보는 목록이 되지 않도록 하루 몫의 일부를 미리 떼어둔다.
+ */
+const RESERVED_FOR_EXPRESSIONS = 3
 
 /**
  * 오늘 볼 것을 고른다.
@@ -144,7 +152,7 @@ const PER_CATEGORY = 5
  * 시제 하나를 번갈아 보면 그냥 낱장 카드가 된다.
  */
 export function buildDeck(
-  mistakes: Mistake[],
+  items: ReviewItem[],
   options: { now?: number; limit?: number; includeUpcoming?: boolean } = {},
 ): Deck {
   const now = options.now ?? Date.now()
@@ -153,12 +161,18 @@ export function buildDeck(
   // 밀린 게 없는 날에도 "그냥 좀 더 보고 싶다"는 사람이 있다. 그때는 만기를
   // 무시하고 아직 졸업하지 않은 것들로 덱을 만든다. 일정은 그대로 갱신된다.
   const due = options.includeUpcoming
-    ? mistakes.filter((m) => !isGraduated(m))
-    : mistakes.filter((m) => isDue(m, now))
+    ? items.filter((m) => !isGraduated(m))
+    : items.filter((m) => isDue(m, now))
+
+  // 담아둔 표현은 따로 떼어 마지막에 붙인다. 실수를 다 본 뒤에 보는 게
+  // 순서로도 맞다 — 안 틀리려고 외우는 것이 먼저고, 쓰려고 외우는 것이 다음이다.
+  const expressions = due.filter((m) => m.category === EXPRESSION_SLUG)
+  const rest = due.filter((m) => m.category !== EXPRESSION_SLUG)
+  const expressionTake = Math.min(RESERVED_FOR_EXPRESSIONS, expressions.length, limit)
 
   // 카테고리별로 모아서, 급한 것부터. 급하다 = 밀린 게 많고 심각하다.
-  const byCategory = new Map<string, Mistake[]>()
-  for (const m of due) {
+  const byCategory = new Map<string, ReviewItem[]>()
+  for (const m of rest) {
     byCategory.set(m.category, [...(byCategory.get(m.category) ?? []), m])
   }
 
@@ -172,12 +186,21 @@ export function buildDeck(
 
   const blocks: ReviewBlock[] = []
   let size = 0
+  const roomForMistakes = limit - expressionTake
 
   for (const { category, list } of ranked) {
-    if (size >= limit) break
-    const take = list.slice(0, Math.min(PER_CATEGORY, limit - size))
-    blocks.push({ category, mistakes: take })
+    if (size >= roomForMistakes) break
+    const take = list.slice(0, Math.min(PER_CATEGORY, roomForMistakes - size))
+    blocks.push({ category, items: take })
     size += take.length
+  }
+
+  if (expressionTake > 0) {
+    blocks.push({
+      category: EXPRESSION_SLUG,
+      items: [...expressions].sort(itemPriority(now)).slice(0, expressionTake),
+    })
+    size += expressionTake
   }
 
   return { blocks, size, waiting: Math.max(0, due.length - size) }
@@ -188,22 +211,24 @@ export function buildDeck(
  * 오래 밀린 것, 심각한 것, 아직 한 번도 안 본 것을 앞으로.
  */
 function itemPriority(now: number) {
-  return (a: Mistake, b: Mistake) => score(b) - score(a)
+  return (a: ReviewItem, b: ReviewItem) => score(b) - score(a)
 
-  function score(m: Mistake): number {
+  function score(m: ReviewItem): number {
     const overdueDays = Math.max(0, (now - (m.dueAt ?? 0)) / DAY)
     return (
       Math.min(30, overdueDays) +
       (SEVERITY_WEIGHT[m.severity] ?? 1) * 2 +
       (isNew(m) ? 3 : 0) +
-      (m.lastReviewCorrect === false ? 3 : 0)
+      (m.lastReviewCorrect === false ? 3 : 0) +
+      // 저장함에 따로 담아뒀다는 건 본인이 중요하다고 표시한 것이다
+      (m.starred ? 2 : 0)
     )
   }
 }
 
 /** 오늘 밀린 개수 — 하단 탭 배지와 쓰기 화면의 안내에 쓴다. */
-export function dueCount(mistakes: Mistake[], now = Date.now()): number {
-  return mistakes.reduce((n, m) => n + (isDue(m, now) ? 1 : 0), 0)
+export function dueCount(items: ReviewItem[], now = Date.now()): number {
+  return items.reduce((n, m) => n + (isDue(m, now) ? 1 : 0), 0)
 }
 
 // ── 개념별 진행 ────────────────────────────────────────────────────
@@ -218,12 +243,12 @@ export interface CategoryProgress {
 }
 
 export function categoryProgress(
-  mistakes: Mistake[],
+  items: ReviewItem[],
   now = Date.now(),
 ): CategoryProgress[] {
   const map = new Map<string, CategoryProgress>()
 
-  for (const m of mistakes) {
+  for (const m of items) {
     const p =
       map.get(m.category) ??
       { category: m.category, total: 0, graduated: 0, due: 0, mastery: 0 }

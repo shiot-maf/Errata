@@ -6,9 +6,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { appUrl } from "@/lib/basePath"
 import { useAuth } from "./AuthProvider"
 import { signInWithGoogle, signOutUser } from "@/lib/firebase/auth"
-import { listEntries, listMistakes, refreshQuests } from "@/lib/firebase/db"
+import { listEntries, listMistakes, listSaved, refreshQuests } from "@/lib/firebase/db"
 import { currentWeekKeys, toDateKey } from "@/lib/dates"
 import { dueCount } from "@/lib/review/schedule"
+import { collectReviewItems } from "@/lib/review/item"
 import { onDueCount } from "@/lib/review/dueSignal"
 import { expToNext } from "@/lib/game"
 import { MonthCalendar } from "./MonthCalendar"
@@ -52,15 +53,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [due, setDue] = useState(0)
 
   // 주간 목표와 캘린더가 같은 목록을 쓰므로 한 번만 읽는다.
-  // 밀린 복습 수도 여기서 한 번 센다.
+  // 밀린 복습 수도 여기서 한 번 센다 — 실수와 담아둔 표현을 함께 센다.
   useEffect(() => {
     if (!user) return
     let cancelled = false
-    Promise.all([listEntries(user.uid, 400), listMistakes(user.uid, 2000)])
-      .then(([list, mistakes]) => {
+    Promise.all([
+      listEntries(user.uid, 400),
+      listMistakes(user.uid, 2000),
+      listSaved(user.uid, 500),
+    ])
+      .then(([list, mistakes, saved]) => {
         if (cancelled) return
         setEntries(list)
-        setDue(dueCount(mistakes))
+        setDue(dueCount(collectReviewItems(mistakes, saved)))
       })
       .catch(() => {})
     return () => {
