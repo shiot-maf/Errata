@@ -40,8 +40,12 @@ jobs:
 
       # Pages는 사이트를 리포 이름 아래에 서빙한다(/Errata). 이름을 하드코딩하지
       # 않고 리포 이름에서 받아오므로, 리포를 옮기거나 이름을 바꿔도 따라간다.
+      # 이 앱의 기본 빌드는 이제 서버가 있는 Next 앱이다(Vercel). Pages에는
+      # 서버가 없으므로 정적 내보내기를 켜서 굽는다. 서버가 필요한 기능이
+      # 들어오면 이 워크플로는 그때 접는다.
       - name: Build (static export)
         env:
+          STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
         run: npm run build
 

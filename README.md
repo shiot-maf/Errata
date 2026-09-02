@@ -338,7 +338,7 @@ npm run dev
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint (flat config, eslint-config-next)
-npm run build       # 정적 내보내기까지
+npm run build       # 서버 모드 (Vercel과 같은 모양)
 ```
 
 환경변수 없이도 바로 뜹니다 — 이 앱 전용 Firebase 프로젝트(`diaryecho`)로
@@ -352,37 +352,49 @@ npm run build       # 정적 내보내기까지
 
 ## 배포
 
-### GitHub Pages (설정돼 있음)
+### Vercel (주 배포)
 
-`.github/workflows/pages.yml`이 main에 푸시될 때마다 정적 내보내기를 만들어
-Pages에 올립니다. 서버 코드가 하나도 없는 앱이라 정적 호스팅으로 충분합니다.
+학원용 기능이 들어오면서 서버가 필요해졌습니다 — 학원 키로 대신 첨삭하는 일과
+선생님이 학생 계정을 발급하는 일은 브라우저에서 할 수 없습니다. 학원 키가
+브라우저에 내려가면 그건 이미 학원 키가 아니고, 계정 발급은 관리자 권한을
+요구합니다. 그래서 기본 배포를 Vercel로 옮깁니다.
+
+1. Vercel에서 이 리포를 import (Root Directory는 리포 루트 그대로)
+2. 빌드 설정은 기본값 그대로 — Next.js를 자동으로 알아봅니다.
+   `NEXT_PUBLIC_BASE_PATH`와 `STATIC_EXPORT`는 **비워둡니다**
+   (루트 도메인에 올라가고, 서버가 있어야 하니까요)
+3. 배포 후 **Firebase 콘솔 → Authentication → Settings → 승인된 도메인**에
+   `<프로젝트>.vercel.app`을 추가 — 안 하면 로그인이
+   `auth/unauthorized-domain`으로 실패합니다
+
+```bash
+npm run build && npm start   # 서버 모드 (Vercel과 같은 모양)
+```
+
+### GitHub Pages (남겨둔 길)
+
+`.github/workflows/pages.yml`이 main에 푸시될 때마다 정적으로 구워 올립니다.
+서버가 필요한 기능이 없는 동안에는 이쪽도 계속 돕니다.
 
 주소: <https://shiot-maf.github.io/Errata/>
 데모: <https://shiot-maf.github.io/Errata/?demo=1> (로그인도 API 키도 없이 샘플 데이터로 둘러보기)
 
-Pages는 사이트를 리포 이름 아래(`/Errata`)에 서빙하므로 빌드할 때
-`NEXT_PUBLIC_BASE_PATH`를 넘깁니다. 워크플로는 이 값을 리포 이름에서 받아오므로
-리포 이름이 바뀌어도 따라갑니다. 루트 도메인에 올릴 때는 비워두면 됩니다.
+정적 내보내기는 이제 **옵션**입니다. `STATIC_EXPORT=1`일 때만 `out/`이 나옵니다.
+Pages는 사이트를 리포 이름 아래(`/Errata`)에 서빙하므로 `NEXT_PUBLIC_BASE_PATH`도
+함께 넘깁니다 — 워크플로가 리포 이름에서 받아오므로 이름이 바뀌어도 따라갑니다.
 
 ```bash
-NEXT_PUBLIC_BASE_PATH=/Errata npm run build   # Pages
-npm run build                                 # 루트 도메인
+STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/Errata npm run build   # Pages
 ```
+
+서버가 필요한 기능(첨삭 프록시, 계정 발급)이 들어오면 이 빌드는 그때 깨집니다.
+그 시점에 이 워크플로를 접고 Vercel 하나로 갑니다.
 
 > **Pages 소스는 "GitHub Actions"여야 합니다.**
 > Settings → Pages → Build and deployment → Source. "Deploy from a branch"로
 > 두면 GitHub 내장 Jekyll 빌더가 같은 사이트에 리포 *소스*를 올리려 들고,
 > 두 발행자가 같은 푸시에 경쟁해 나중에 끝난 쪽이 덮어씁니다. 그러면 앱 대신
 > 이 README가 뜹니다.
-
-### Vercel
-
-1. Vercel에서 이 리포를 import (Root Directory는 리포 루트 그대로)
-2. 빌드 설정은 기본값 그대로 (Next.js 자동 인식). `NEXT_PUBLIC_BASE_PATH`는
-   비워둡니다 — 루트 도메인에 올라가니까요.
-3. 배포 후 **Firebase 콘솔 → Authentication → Settings → 승인된 도메인**에
-   `your-app.vercel.app`을 추가 — 안 하면 구글 로그인이 `auth/unauthorized-domain`으로
-   실패합니다
 
 ### Firebase 쪽에서 한 번만 해둘 것
 
@@ -393,7 +405,7 @@ Firebase를 전혀 건드리지 않으므로 그와 무관하게 동작합니다
 1. **Authentication → Sign-in method**에서 **이메일/비밀번호**와 **Google** 사용 설정
    (이메일 쪽을 켜지 않으면 가입할 때 "이메일 가입이 아직 켜져 있지 않아요"가 뜹니다)
 2. **Authentication → Settings → 승인된 도메인**에 배포 도메인 추가
-   (`shiot-maf.github.io`, 그리고 Vercel로 옮기면 그 도메인도)
+   (`shiot-maf.github.io`와 `<프로젝트>.vercel.app` 둘 다)
 3. **Firestore Database → 규칙** 탭에 `firestore.rules` 내용을 붙여넣고 게시
    (핸들이 생기면서 `handles` 컬렉션 규칙이 늘었습니다. 게시하지 않으면
    핸들을 정할 때 "저장할 권한이 없어요"가 뜹니다)
@@ -419,7 +431,7 @@ PWA(매니페스트 + 서비스 워커)가 이미 들어 있어서 홈 화면에
 
 한 걸음 더 가려면 Capacitor로 감싸는 게 가장 짧은 경로입니다. 그때 손볼 곳은:
 
-- `next.config.ts`에 `output: "export"` (정적 내보내기)
+- `STATIC_EXPORT=1`로 정적 내보내기 (`next.config.ts`가 그때만 `output: "export"`를 켭니다)
 - Google 로그인을 팝업 대신 네이티브 SDK로 (`@capacitor-firebase/authentication`)
 - API 키를 OS 보안 저장소로 (`@capacitor/preferences` 또는 Keychain)
 
