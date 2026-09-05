@@ -10,6 +10,8 @@ import { listEntries, listMistakes, listSaved, refreshQuests } from "@/lib/fireb
 import { currentWeekKeys, toDateKey } from "@/lib/dates"
 import { dueCount } from "@/lib/review/schedule"
 import { collectReviewItems } from "@/lib/review/item"
+import { isDemo } from "@/lib/demo/store"
+import { notifyStoredValueChanged } from "@/lib/browserStore"
 import { onDueCount } from "@/lib/review/dueSignal"
 import { expToNext } from "@/lib/game"
 import { Landing } from "./Landing"
@@ -93,6 +95,29 @@ export function AppShell({ children }: { children: ReactNode }) {
   // 복습을 한 문제 풀 때마다 밀린 수가 줄어든다. 그때마다 2000건을 다시 읽는
   // 대신, 목록을 손에 들고 있는 복습 화면이 셈만 넘겨준다.
   useEffect(() => onDueCount(setDue), [])
+
+  /*
+   * 데모를 끄는 표식(?demo=0)을 주소에서 치운다.
+   *
+   * 소임이 끝난 표식이 북마크와 공유 링크에 그대로 따라다니기 때문이다.
+   * ?demo=1은 남긴다 — 데모에 들어간 사람이 주소창을 복사해 남에게 보낼 수
+   * 있어야 하고, 그게 이 앱에서 데모를 퍼뜨리는 유일한 길이다.
+   *
+   * 여기서 isDemo()를 먼저 부르는 것이 중요하다. 세션 플래그를 지우는 건
+   * 그 함수인데, useSyncExternalStore는 하이드레이션 동안 서버 스냅숏을 쓰고
+   * 클라이언트 쪽 스냅숏은 나중에 읽는다. 그래서 주소부터 지우면 정작
+   * isDemo()가 불릴 때 표식이 없어서 플래그가 살아남고, 나가기를 눌러도
+   * 데모가 꺼지지 않는다. 표식은 지우는 쪽이 소비한다.
+   */
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get("demo") !== "0") return
+
+    isDemo()
+    url.searchParams.delete("demo")
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
+    notifyStoredValueChanged()
+  }, [])
 
   // 자정에 도는 스케줄러가 없으니 앱을 열 때 지난 퀘스트를 되돌린다.
   useEffect(() => {
